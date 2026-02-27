@@ -1,6 +1,15 @@
-@Woah.Api_HostAddress = http://localhost:5234
+@BaseHttps = https://localhost:7103
+@BaseHttp = http://localhost:5234
 
-GET {{Woah.Api_HostAddress}}/weatherforecast/
+GET {{BaseHttps}}/health/live
 Accept: application/json
 
 ###
+
+GET {{BaseHttps}}/health/ready
+Accept: application/json
+
+###
+
+GET {{BaseHttps}}/openapi/v1.json
+Accept: application/json
