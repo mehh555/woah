@@ -1,9 +1,18 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
+using Woah.Api.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+
+var connStr = builder.Configuration.GetConnectionString("WoahDb");
+
+builder.Services.AddDbContext<WoahDbContext>(options =>
+{
+    options.UseNpgsql(connStr);
+});
 
 builder.Services.AddHealthChecks()
     .AddCheck("live", () => HealthCheckResult.Healthy(), tags: new[] { "live" })
