@@ -1,6 +1,0 @@
-@Woah.Api_HostAddress = http://localhost:5123
-
-GET {{Woah.Api_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

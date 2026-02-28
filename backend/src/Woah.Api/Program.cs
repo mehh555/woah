@@ -1,27 +1,21 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Woah.Infrastructure.Persistence;
-
+using Woah.Api.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration.AddUserSecrets<Program>(optional: true);
 
 builder.Services.AddControllers();
 
-var connStr = builder.Configuration.GetConnectionString("WoahDb");
-if (string.IsNullOrWhiteSpace(connStr))
-    throw new InvalidOperationException("Brak connection stringa: ConnectionStrings:WoahDb (User Secrets / appsettings / env).");
-
 builder.Services.AddDbContext<WoahDbContext>(options =>
-{
-    options.UseNpgsql(connStr, npgsql =>
-        npgsql.MigrationsAssembly(typeof(WoahDbContext).Assembly.FullName));
-});
+    options.UseNpgsql(builder.Configuration.GetConnectionString("WoahDb")));
+
+
+
 
 builder.Services.AddHealthChecks()
     .AddCheck("live", () => HealthCheckResult.Healthy(), tags: new[] { "live" })
-    .AddDbContextCheck<WoahDbContext>("db", tags: new[] { "ready" })
     .AddCheck("ready", () => HealthCheckResult.Healthy(), tags: new[] { "ready" });
 
 var app = builder.Build();

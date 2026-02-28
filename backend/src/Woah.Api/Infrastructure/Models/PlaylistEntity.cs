@@ -1,0 +1,17 @@
+using System;
+using System.Collections.Generic;
+
+namespace Woah.Api.Infrastructure.Models;
+
+public class PlaylistEntity
+{
+    public Guid PlaylistId { get; set; }
+    public Guid OwnerPlayerId { get; set; }
+    public PlayerEntity? OwnerPlayer { get; set; }
+
+    public string Name { get; set; } = default!;
+    public string Market { get; set; } = "PL";
+    public DateTime CreatedAt { get; set; }
+
+    public ICollection<PlaylistTrackEntity>? Tracks { get; set; }
+}

@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.24" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.24">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.*">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -22,11 +22,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="8.0.24" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.*" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\Woah.Infrastructure\Woah.Infrastructure.csproj" />
-  </ItemGroup>
+  
 
 </Project>
