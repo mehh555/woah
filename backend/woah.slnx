@@ -1,4 +1,7 @@
 <Solution>
   <Project Path="src/Woah.Api/Woah.Api.csproj" Id="4d188e74-855d-4e7d-a031-a8893fc25b33" />
   <Project Path="tests/Woah.Api.Tests/Woah.Api.Tests.csproj" Id="e43596e4-eac1-48c7-9baf-fb8ac872bee3" />
+  <Project Path="Woah.Application/Woah.Application.csproj" />
+  <Project Path="Woah.Domain/Woah.Domain.csproj" />
+  <Project Path="Woah.Infrastructure/Woah.Infrastructure.csproj" />
 </Solution>
