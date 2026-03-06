@@ -4,8 +4,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+<<<<<<< HEAD
 using Woah.Api.Infrastructure.Models;
 
+=======
+using Woah.Api.Infrastructure.WoahDbContext;
+>>>>>>> c55dddf1a83471d95a66370076cc2c34ab93b14e
 
 #nullable disable
 
@@ -124,8 +128,14 @@ namespace Woah.Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("ExternalId")
+                        .HasColumnType("text");
+
                     b.Property<string>("Nick")
                         .HasColumnType("text");
+
+                    b.Property<int>("Provider")
+                        .HasColumnType("integer");
 
                     b.HasKey("PlayerId");
 
