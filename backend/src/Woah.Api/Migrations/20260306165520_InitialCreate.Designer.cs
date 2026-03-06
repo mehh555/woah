@@ -5,14 +5,14 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using Woah.Api.Infrastructure;
+using Woah.Api.Infrastructure.WoahDbContext;
 
 #nullable disable
 
 namespace Woah.Api.Migrations
 {
     [DbContext(typeof(WoahDbContext))]
-    [Migration("20260228193255_InitialCreate")]
+    [Migration("20260306165520_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -126,8 +126,14 @@ namespace Woah.Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("ExternalId")
+                        .HasColumnType("text");
+
                     b.Property<string>("Nick")
                         .HasColumnType("text");
+
+                    b.Property<int>("Provider")
+                        .HasColumnType("integer");
 
                     b.HasKey("PlayerId");
 

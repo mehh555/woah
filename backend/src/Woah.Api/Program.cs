@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Woah.Api.Infrastructure;
+using Woah.Api.Infrastructure.WoahDbContext;
+using Woah.Api.Services;
+using Woah.Api.Infrastructure.Auth;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration.AddUserSecrets<Program>(optional: true);
@@ -12,11 +14,11 @@ builder.Services.AddDbContext<WoahDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("WoahDb")));
 
 
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<SpotifyOAuthService>();
+builder.Services.AddHttpClient<SpotifyOAuthService>();
 
 
-builder.Services.AddHealthChecks()
-    .AddCheck("live", () => HealthCheckResult.Healthy(), tags: new[] { "live" })
-    .AddCheck("ready", () => HealthCheckResult.Healthy(), tags: new[] { "ready" });
 
 var app = builder.Build();
 
@@ -25,14 +27,5 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.MapHealthChecks("/health/live", new HealthCheckOptions
-{
-    Predicate = r => r.Tags.Contains("live")
-});
-
-app.MapHealthChecks("/health/ready", new HealthCheckOptions
-{
-    Predicate = r => r.Tags.Contains("ready")
-});
 
 app.Run();

@@ -1,7 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Woah.Api.Infrastructure.Models;
 
-namespace Woah.Api.Infrastructure;
+namespace Woah.Api.Infrastructure.WoahDbContext
+{
 
 public class WoahDbContext : DbContext
 {
@@ -70,4 +71,4 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
     modelBuilder.Entity<RoundCorrectAnswerEntity>()
         .HasKey(rca => new { rca.RoundId, rca.PlayerId });
 }
-}
+}}

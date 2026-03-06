@@ -18,7 +18,9 @@ namespace Woah.Api.Migrations
                     PlayerId = table.Column<Guid>(type: "uuid", nullable: false),
                     Nick = table.Column<string>(type: "text", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    AvatarUrl = table.Column<string>(type: "text", nullable: true)
+                    AvatarUrl = table.Column<string>(type: "text", nullable: true),
+                    Provider = table.Column<int>(type: "integer", nullable: false),
+                    ExternalId = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
