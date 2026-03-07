@@ -1,4 +1,3 @@
-using Woah.Api.Infrastructure.WoahDbContext; 
 using Woah.Api.Infrastructure.Models; 
 using Woah.Api.Infrastructure.Auth; 
 using Microsoft.EntityFrameworkCore;

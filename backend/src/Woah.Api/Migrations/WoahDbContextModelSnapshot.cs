@@ -4,12 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-<<<<<<< HEAD
 using Woah.Api.Infrastructure.Models;
 
-=======
-using Woah.Api.Infrastructure.WoahDbContext;
->>>>>>> c55dddf1a83471d95a66370076cc2c34ab93b14e
 
 #nullable disable
 

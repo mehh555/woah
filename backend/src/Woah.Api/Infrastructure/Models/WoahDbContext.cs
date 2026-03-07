@@ -1,11 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-<<<<<<< HEAD:backend/src/Woah.Api/Infrastructure/Models/WoahDbContext.cs
-namespace Woah.Api.Infrastructure.Models;
-=======
-namespace Woah.Api.Infrastructure.WoahDbContext
-{
->>>>>>> c55dddf1a83471d95a66370076cc2c34ab93b14e:backend/src/Woah.Api/Infrastructure/WoahDbContext.cs
+namespace Woah.Api.Infrastructure.Models{
 
 public class WoahDbContext : DbContext
 {

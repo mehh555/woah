@@ -29,6 +29,10 @@
     <Folder Include="Infrastructure\Persistence\Configurations\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Woah.Core\Woah.Core.csproj" />
+  </ItemGroup>
+
   
 
 </Project>

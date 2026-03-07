@@ -1,7 +1,6 @@
 
 using Microsoft.AspNetCore.Mvc;  
 using Woah.Api.Infrastructure.Models; 
-using Woah.Api.Infrastructure.WoahDbContext; 
 using Woah.Api.Services; 
 using Woah.Core.DTO;
 namespace Woah.Api.Controllers

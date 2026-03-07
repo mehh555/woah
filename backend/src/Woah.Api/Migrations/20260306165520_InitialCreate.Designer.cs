@@ -5,12 +5,8 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-<<<<<<< HEAD:backend/src/Woah.Api/Migrations/20260228193255_InitialCreate.Designer.cs
 using Woah.Api.Infrastructure.Models;
 
-=======
-using Woah.Api.Infrastructure.WoahDbContext;
->>>>>>> c55dddf1a83471d95a66370076cc2c34ab93b14e:backend/src/Woah.Api/Migrations/20260306165520_InitialCreate.Designer.cs
 
 #nullable disable
 
