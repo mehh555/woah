@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Woah.Api.Infrastructure.Models;
+namespace Woah.Api.Infrastructure.Persistence.Models;
 
 public class PlaylistEntity
 {
