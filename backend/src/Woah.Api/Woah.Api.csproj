@@ -22,11 +22,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Application\Lobby\" />
-    <Folder Include="Application\Game\" />
-    <Folder Include="Application\Spotify\" />
-    <Folder Include="Infrastructure\Persistence\Entities\" />
-    <Folder Include="Infrastructure\Persistence\Configurations\" />
+    <Folder Include="Contracts\Sessions\" />
+    <Folder Include="Contracts\Playlists\" />
+    <Folder Include="Integrations\" />
   </ItemGroup>
 
   

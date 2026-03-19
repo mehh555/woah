@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Woah.Api.Infrastructure.Persistence.Models;
 
-namespace Woah.Api.Infrastructure.Models;
+namespace Woah.Api.Infrastructure.Persistence;
 
 public class WoahDbContext : DbContext
 {
