@@ -4,6 +4,12 @@ using System.Collections.Generic;
 namespace Woah.Api.Infrastructure.Persistence.Models;
 
 
+public enum AuthProvider
+{
+    Guest,
+    Spotify
+}
+
 public class PlayerEntity
 {
     
@@ -11,6 +17,8 @@ public class PlayerEntity
     public string? Nick { get; set; }
     public DateTime CreatedAt { get; set; }
     public string? AvatarUrl { get; set; } 
+    public AuthProvider Provider { get; set; }
+    public string? ExternalId { get; set; }
 
     public ICollection<LobbyPlayerEntity> LobbyMemberships { get; set; } = new List<LobbyPlayerEntity>();
     public ICollection<PlaylistEntity> Playlists { get; set; } = new List<PlaylistEntity>();

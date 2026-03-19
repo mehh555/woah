@@ -27,6 +27,10 @@
     <Folder Include="Integrations\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Woah.Core\Woah.Core.csproj" />
+  </ItemGroup>
+
   
 
 </Project>

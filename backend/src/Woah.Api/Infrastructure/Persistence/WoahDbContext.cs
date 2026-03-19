@@ -70,4 +70,4 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
     modelBuilder.Entity<RoundCorrectAnswerEntity>()
         .HasKey(rca => new { rca.RoundId, rca.PlayerId });
 }
-}
+}}
