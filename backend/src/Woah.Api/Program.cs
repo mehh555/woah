@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Woah.Api.Infrastructure;
 using Woah.Api.Infrastructure.Models;
-using Woah.Api.Spotify;
+using Woah.Api.Itunes;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,14 +14,12 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<WoahDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("WoahDb")));
 
-builder.Services
-    .AddOptions<SpotifyOptions>()
-    .Bind(builder.Configuration.GetSection(SpotifyOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
 
-builder.Services.AddHttpClient<SpotifyAuthService>();
-builder.Services.AddHttpClient<SpotifyApiClient>();
+builder.Services.AddHttpClient<ItunesApiClient>(client =>
+{
+    client.BaseAddress = new Uri("https://itunes.apple.com/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
 
 builder.Services.AddHealthChecks()
     .AddCheck("live", () => HealthCheckResult.Healthy(), tags: new[] { "live" })
@@ -30,6 +28,10 @@ builder.Services.AddHealthChecks()
 var app = builder.Build();
 
 app.UseHttpsRedirection();
+
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.UseAuthorization();
 
 app.MapControllers();
