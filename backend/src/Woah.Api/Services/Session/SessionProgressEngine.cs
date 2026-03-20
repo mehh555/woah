@@ -5,7 +5,7 @@ using Woah.Api.Infrastructure.Persistence.Models;
 
 namespace Woah.Api.Services.Session;
 
-public class SessionProgressEngine
+public class SessionProgressEngine : ISessionProgressEngine
 {
     private readonly WoahDbContext _dbContext;
 

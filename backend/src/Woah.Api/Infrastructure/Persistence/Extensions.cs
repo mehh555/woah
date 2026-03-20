@@ -1,8 +1,8 @@
 ﻿using Woah.Api.Infrastructure.Persistence.Models;
 
-namespace Woah.Api.Domain;
+namespace Woah.Api.Infrastructure.Persistence;
 
-internal static class LobbyExtensions
+internal static class Extensions
 {
     public static string NormalizeCode(this string lobbyCode)
         => lobbyCode.Trim().ToUpperInvariant();

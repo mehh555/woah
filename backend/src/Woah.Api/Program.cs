@@ -25,8 +25,8 @@ builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<ILobbyPlaylistService, LobbyPlaylistService>();
 builder.Services.AddScoped<IAnswerNormalizer, AnswerNormalizer>();
 builder.Services.AddScoped<IScoreCalculator, LinearScoreCalculator>();
-builder.Services.AddScoped<SessionProgressEngine>();
-builder.Services.AddScoped<SessionStateBuilder>();
+builder.Services.AddScoped<ISessionProgressEngine, SessionProgressEngine>();
+builder.Services.AddScoped<ISessionStateBuilder, SessionStateBuilder>();
 builder.Services.AddSingleton<ILobbyCodeGenerator, LobbyCodeGenerator>();
 builder.Services.AddSingleton<ILobbyPlaylistStore, InMemoryLobbyPlaylistStore>();
 

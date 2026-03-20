@@ -14,16 +14,16 @@ public class SessionService : ISessionService
     private readonly ILobbyPlaylistStore _playlistStore;
     private readonly IAnswerNormalizer _normalizer;
     private readonly IScoreCalculator _scoreCalculator;
-    private readonly SessionProgressEngine _progressEngine;
-    private readonly SessionStateBuilder _stateBuilder;
+    private readonly ISessionProgressEngine _progressEngine;
+    private readonly ISessionStateBuilder _stateBuilder;
 
     public SessionService(
         WoahDbContext dbContext,
         ILobbyPlaylistStore playlistStore,
         IAnswerNormalizer normalizer,
         IScoreCalculator scoreCalculator,
-        SessionProgressEngine progressEngine,
-        SessionStateBuilder stateBuilder)
+        ISessionProgressEngine progressEngine,
+        ISessionStateBuilder stateBuilder)
     {
         _dbContext = dbContext;
         _playlistStore = playlistStore;
@@ -33,8 +33,7 @@ public class SessionService : ISessionService
         _stateBuilder = stateBuilder;
     }
 
-    public async Task<StartSessionResponse> StartSessionAsync(
-        string lobbyCode, StartSessionRequest request, CancellationToken ct = default)
+    public async Task<StartSessionResponse> StartSessionAsync(string lobbyCode, StartSessionRequest request, CancellationToken ct = default)
     {
         var lobby = await GetLobbyWithPlayersAsync(lobbyCode.NormalizeCode(), ct);
 
@@ -55,8 +54,7 @@ public class SessionService : ISessionService
 
         Shuffle(tracks);
 
-        await using var tx = await _dbContext.Database.BeginTransactionAsync(
-            System.Data.IsolationLevel.Serializable, ct);
+        await using var tx = await _dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
         try
         {
             if (await _dbContext.GameSessions.AnyAsync(x => x.LobbyId == lobby.LobbyId && x.EndedAt == null, ct))
@@ -89,16 +87,14 @@ public class SessionService : ISessionService
         }
     }
 
-    public async Task<GetSessionStateResponse> GetSessionStateAsync(
-        Guid sessionId, CancellationToken ct = default)
+    public async Task<GetSessionStateResponse> GetSessionStateAsync(Guid sessionId, CancellationToken ct = default)
     {
         var session = await LoadSessionAsync(sessionId, ct);
         await _progressEngine.EnsureProgressAsync(session, ct);
         return await _stateBuilder.BuildAsync(session, ct);
     }
 
-    public async Task<SubmitAnswerResponse> SubmitAnswerAsync(
-        Guid sessionId, SubmitAnswerRequest request, CancellationToken ct = default)
+    public async Task<SubmitAnswerResponse> SubmitAnswerAsync(Guid sessionId, SubmitAnswerRequest request, CancellationToken ct = default)
     {
         var session = await LoadSessionAsync(sessionId, ct);
         await _progressEngine.EnsureProgressAsync(session, ct);
@@ -129,14 +125,7 @@ public class SessionService : ISessionService
             return AlreadyAnswered();
 
         if (!string.Equals(_normalizer.Normalize(request.Answer), round.AnswerNorm, StringComparison.Ordinal))
-            return new SubmitAnswerResponse
-            {
-                Accepted = true,
-                IsCorrect = false,
-                AlreadyAnswered = false,
-                PointsAwarded = 0,
-                Message = "Incorrect answer."
-            };
+            return new SubmitAnswerResponse { Accepted = true, IsCorrect = false, AlreadyAnswered = false, PointsAwarded = 0, Message = "Incorrect answer." };
 
         var settings = SessionSettings.Parse(session.SettingsJson);
         var elapsed = Math.Max((DateTime.UtcNow - round.StartedAt).TotalSeconds, 0);
@@ -158,18 +147,10 @@ public class SessionService : ISessionService
             return AlreadyAnswered();
         }
 
-        return new SubmitAnswerResponse
-        {
-            Accepted = true,
-            IsCorrect = true,
-            AlreadyAnswered = false,
-            PointsAwarded = points,
-            Message = "Correct answer."
-        };
+        return new SubmitAnswerResponse { Accepted = true, IsCorrect = true, AlreadyAnswered = false, PointsAwarded = points, Message = "Correct answer." };
     }
 
-    public async Task<GetSessionStateResponse> AdvanceSessionAsync(
-        Guid sessionId, AdvanceSessionRequest request, CancellationToken ct = default)
+    public async Task<GetSessionStateResponse> AdvanceSessionAsync(Guid sessionId, AdvanceSessionRequest request, CancellationToken ct = default)
     {
         var session = await LoadSessionAsync(sessionId, ct);
         var lobby = await _dbContext.Lobbies.FirstAsync(x => x.LobbyId == session.LobbyId, ct);
@@ -203,8 +184,7 @@ public class SessionService : ISessionService
 
     private async Task<GameSessionEntity> LoadSessionAsync(Guid sessionId, CancellationToken ct) =>
         await _dbContext.GameSessions
-            .Include(x => x.Rounds)
-                .ThenInclude(x => x.CorrectAnswers)
+            .Include(x => x.Rounds).ThenInclude(x => x.CorrectAnswers)
             .FirstOrDefaultAsync(x => x.SessionId == sessionId, ct)
         ?? throw new NotFoundException("Session not found.");
 

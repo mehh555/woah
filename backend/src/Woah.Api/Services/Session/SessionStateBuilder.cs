@@ -6,7 +6,7 @@ using Woah.Api.Infrastructure.Persistence.Models;
 
 namespace Woah.Api.Services.Session;
 
-public class SessionStateBuilder
+public class SessionStateBuilder : ISessionStateBuilder
 {
     private readonly WoahDbContext _dbContext;
 
