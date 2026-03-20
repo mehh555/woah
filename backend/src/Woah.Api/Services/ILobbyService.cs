@@ -14,4 +14,13 @@ public interface ILobbyService
         string lobbyCode,
         JoinLobbyRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<GetLobbyResponse> GetLobbyAsync(
+        string lobbyCode,
+        CancellationToken cancellationToken = default);
+
+    Task<LeaveLobbyResponse> LeaveLobbyAsync(
+        string lobbyCode,
+        LeaveLobbyRequest request,
+        CancellationToken cancellationToken = default);
 }

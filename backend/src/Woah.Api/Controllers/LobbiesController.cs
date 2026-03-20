@@ -44,4 +44,41 @@ public class LobbiesController : ControllerBase
             return BadRequest(new { message = exception.Message });
         }
     }
+
+    [HttpGet("{lobbyCode}")]
+    [ProducesResponseType(typeof(GetLobbyResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<GetLobbyResponse>> GetLobby(
+        [FromRoute] string lobbyCode,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _lobbyService.GetLobbyAsync(lobbyCode, cancellationToken);
+            return Ok(response);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+    }
+
+    [HttpPost("{lobbyCode}/leave")]
+    [ProducesResponseType(typeof(LeaveLobbyResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<LeaveLobbyResponse>> LeaveLobby(
+        [FromRoute] string lobbyCode,
+        [FromBody] LeaveLobbyRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _lobbyService.LeaveLobbyAsync(lobbyCode, request, cancellationToken);
+            return Ok(response);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+    }
 }

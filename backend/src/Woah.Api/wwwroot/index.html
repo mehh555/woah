@@ -6,7 +6,7 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 900px;
+            max-width: 980px;
             margin: 40px auto;
             padding: 0 16px;
         }
@@ -38,7 +38,7 @@
 
         input {
             width: 100%;
-            max-width: 320px;
+            max-width: 420px;
             padding: 10px;
             font-size: 16px;
         }
@@ -47,6 +47,8 @@
             padding: 10px 16px;
             font-size: 16px;
             cursor: pointer;
+            margin-right: 8px;
+            margin-bottom: 8px;
         }
 
         .result {
@@ -86,7 +88,7 @@
     </div>
 
     <div class="section">
-        <h2>JoinLobby</h2>
+        <h2>JoinLobby / GetLobby / LeaveLobby</h2>
 
         <div class="field">
             <label for="joinLobbyCode">Kod lobby</label>
@@ -98,9 +100,18 @@
             <input id="joinNick" type="text" value="Alice" />
         </div>
 
+        <div class="field">
+            <label for="leavePlayerId">PlayerId do wyjścia z lobby</label>
+            <input id="leavePlayerId" type="text" />
+        </div>
+
         <button id="joinLobbyButton">Dołącz do lobby</button>
+        <button id="refreshLobbyButton">Pobierz stan lobby</button>
+        <button id="leaveLobbyButton">Wyjdź z lobby</button>
 
         <div id="joinLobbyResult" class="result">Tutaj pojawi się odpowiedź dla JoinLobby.</div>
+        <div id="lobbyDetailsResult" class="result">Tutaj pojawią się szczegóły lobby.</div>
+        <div id="leaveLobbyResult" class="result">Tutaj pojawi się odpowiedź dla LeaveLobby.</div>
     </div>
 
     <script>
@@ -111,8 +122,15 @@
 
         const joinLobbyCodeInput = document.getElementById("joinLobbyCode");
         const joinNickInput = document.getElementById("joinNick");
+        const leavePlayerIdInput = document.getElementById("leavePlayerId");
+
         const joinLobbyButton = document.getElementById("joinLobbyButton");
+        const refreshLobbyButton = document.getElementById("refreshLobbyButton");
+        const leaveLobbyButton = document.getElementById("leaveLobbyButton");
+
         const joinLobbyResult = document.getElementById("joinLobbyResult");
+        const lobbyDetailsResult = document.getElementById("lobbyDetailsResult");
+        const leaveLobbyResult = document.getElementById("leaveLobbyResult");
 
         createLobbyButton.addEventListener("click", async () => {
             createLobbyResult.classList.remove("error");
@@ -146,6 +164,14 @@
                 if (body && body.lobbyCode) {
                     joinLobbyCodeInput.value = body.lobbyCode;
                 }
+
+                if (body && body.hostPlayerId) {
+                    leavePlayerIdInput.value = body.hostPlayerId;
+                }
+
+                if (body && body.lobbyCode) {
+                    await loadLobbyDetails(body.lobbyCode);
+                }
             } catch (error) {
                 createLobbyResult.classList.add("error");
                 createLobbyResult.textContent = "Błąd połączenia:\n\n" + error;
@@ -157,6 +183,12 @@
             joinLobbyResult.textContent = "Wysyłanie żądania...";
 
             const lobbyCode = joinLobbyCodeInput.value.trim();
+
+            if (!lobbyCode) {
+                joinLobbyResult.classList.add("error");
+                joinLobbyResult.textContent = "Kod lobby jest pusty.";
+                return;
+            }
 
             const payload = {
                 nick: joinNickInput.value
@@ -179,12 +211,102 @@
 
                 if (!response.ok) {
                     joinLobbyResult.classList.add("error");
+                    return;
                 }
+
+                if (body && body.playerId) {
+                    leavePlayerIdInput.value = body.playerId;
+                }
+
+                await loadLobbyDetails(lobbyCode);
             } catch (error) {
                 joinLobbyResult.classList.add("error");
                 joinLobbyResult.textContent = "Błąd połączenia:\n\n" + error;
             }
         });
+
+        refreshLobbyButton.addEventListener("click", async () => {
+            const lobbyCode = joinLobbyCodeInput.value.trim();
+
+            if (!lobbyCode) {
+                lobbyDetailsResult.classList.add("error");
+                lobbyDetailsResult.textContent = "Kod lobby jest pusty.";
+                return;
+            }
+
+            await loadLobbyDetails(lobbyCode);
+        });
+
+        leaveLobbyButton.addEventListener("click", async () => {
+            leaveLobbyResult.classList.remove("error");
+            leaveLobbyResult.textContent = "Wysyłanie żądania...";
+
+            const lobbyCode = joinLobbyCodeInput.value.trim();
+            const playerId = leavePlayerIdInput.value.trim();
+
+            if (!lobbyCode) {
+                leaveLobbyResult.classList.add("error");
+                leaveLobbyResult.textContent = "Kod lobby jest pusty.";
+                return;
+            }
+
+            if (!playerId) {
+                leaveLobbyResult.classList.add("error");
+                leaveLobbyResult.textContent = "PlayerId jest pusty.";
+                return;
+            }
+
+            const payload = {
+                playerId: playerId
+            };
+
+            try {
+                const response = await fetch(`/api/lobbies/${encodeURIComponent(lobbyCode)}/leave`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const body = await readResponseBody(response);
+
+                leaveLobbyResult.textContent =
+                    "Status: " + response.status + "\n\n" +
+                    JSON.stringify(body, null, 2);
+
+                if (!response.ok) {
+                    leaveLobbyResult.classList.add("error");
+                    return;
+                }
+
+                await loadLobbyDetails(lobbyCode);
+            } catch (error) {
+                leaveLobbyResult.classList.add("error");
+                leaveLobbyResult.textContent = "Błąd połączenia:\n\n" + error;
+            }
+        });
+
+        async function loadLobbyDetails(lobbyCode) {
+            lobbyDetailsResult.classList.remove("error");
+            lobbyDetailsResult.textContent = "Pobieranie stanu lobby...";
+
+            try {
+                const response = await fetch(`/api/lobbies/${encodeURIComponent(lobbyCode)}`);
+                const body = await readResponseBody(response);
+
+                lobbyDetailsResult.textContent =
+                    "Status: " + response.status + "\n\n" +
+                    JSON.stringify(body, null, 2);
+
+                if (!response.ok) {
+                    lobbyDetailsResult.classList.add("error");
+                }
+            } catch (error) {
+                lobbyDetailsResult.classList.add("error");
+                lobbyDetailsResult.textContent = "Błąd połączenia:\n\n" + error;
+            }
+        }
 
         async function readResponseBody(response) {
             const responseText = await response.text();

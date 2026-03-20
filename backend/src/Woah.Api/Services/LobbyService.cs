@@ -85,7 +85,7 @@ public class LobbyService : ILobbyService
         JoinLobbyRequest request,
         CancellationToken cancellationToken = default)
     {
-        var normalizedLobbyCode = lobbyCode.Trim().ToUpperInvariant();
+        var normalizedLobbyCode = NormalizeLobbyCode(lobbyCode);
         var normalizedNick = request.Nick.Trim();
         var now = DateTime.UtcNow;
 
@@ -103,9 +103,7 @@ public class LobbyService : ILobbyService
             throw new InvalidOperationException("Lobby is not accepting new players.");
         }
 
-        var activePlayers = (lobby.LobbyPlayers ?? new List<LobbyPlayerEntity>())
-            .Where(x => x.LeftAt == null)
-            .ToList();
+        var activePlayers = GetActivePlayers(lobby);
 
         if (activePlayers.Count >= lobby.MaxPlayers)
         {
@@ -151,6 +149,108 @@ public class LobbyService : ILobbyService
         };
     }
 
+    public async Task<GetLobbyResponse> GetLobbyAsync(
+        string lobbyCode,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedLobbyCode = NormalizeLobbyCode(lobbyCode);
+
+        var lobby = await _dbContext.Lobbies
+            .Include(x => x.LobbyPlayers)
+            .FirstOrDefaultAsync(x => x.Code == normalizedLobbyCode, cancellationToken);
+
+        if (lobby is null)
+        {
+            throw new InvalidOperationException("Lobby not found.");
+        }
+
+        var activePlayers = GetActivePlayers(lobby);
+
+        return new GetLobbyResponse
+        {
+            LobbyId = lobby.LobbyId,
+            Code = lobby.Code,
+            Status = lobby.Status,
+            MaxPlayers = lobby.MaxPlayers,
+            HostPlayerId = lobby.HostPlayerId,
+            PlayerCount = activePlayers.Count,
+            Players = activePlayers.Select(x => new LobbyPlayerResponse
+            {
+                PlayerId = x.PlayerId,
+                Nick = x.Nick,
+                JoinedAt = x.JoinedAt,
+                IsHost = x.PlayerId == lobby.HostPlayerId
+            }).ToList()
+        };
+    }
+
+    public async Task<LeaveLobbyResponse> LeaveLobbyAsync(
+        string lobbyCode,
+        LeaveLobbyRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedLobbyCode = NormalizeLobbyCode(lobbyCode);
+        var now = DateTime.UtcNow;
+
+        var lobby = await _dbContext.Lobbies
+            .Include(x => x.LobbyPlayers)
+            .FirstOrDefaultAsync(x => x.Code == normalizedLobbyCode, cancellationToken);
+
+        if (lobby is null)
+        {
+            throw new InvalidOperationException("Lobby not found.");
+        }
+
+        if (lobby.Status != "Waiting")
+        {
+            throw new InvalidOperationException("Players can leave only while lobby is waiting.");
+        }
+
+        var membership = (lobby.LobbyPlayers ?? new List<LobbyPlayerEntity>())
+            .FirstOrDefault(x => x.PlayerId == request.PlayerId && x.LeftAt == null);
+
+        if (membership is null)
+        {
+            throw new InvalidOperationException("Active player membership not found in this lobby.");
+        }
+
+        var wasHost = lobby.HostPlayerId == request.PlayerId;
+
+        membership.LeftAt = now;
+
+        Guid? newHostPlayerId = null;
+
+        var remainingActivePlayers = GetActivePlayers(lobby)
+            .Where(x => x.PlayerId != request.PlayerId)
+            .ToList();
+
+        if (remainingActivePlayers.Count == 0)
+        {
+            lobby.Status = "Finished";
+        }
+        else if (wasHost)
+        {
+            var newHost = remainingActivePlayers
+                .OrderBy(x => x.JoinedAt)
+                .First();
+
+            lobby.HostPlayerId = newHost.PlayerId;
+            newHostPlayerId = newHost.PlayerId;
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return new LeaveLobbyResponse
+        {
+            LobbyId = lobby.LobbyId,
+            LobbyCode = lobby.Code,
+            PlayerId = request.PlayerId,
+            WasHost = wasHost,
+            NewHostPlayerId = newHostPlayerId,
+            LobbyStatus = lobby.Status
+        };
+    }
+
     private async Task<string> GenerateUniqueLobbyCodeAsync(CancellationToken cancellationToken)
     {
         for (var attempt = 0; attempt < 10; attempt++)
@@ -167,5 +267,18 @@ public class LobbyService : ILobbyService
         }
 
         throw new InvalidOperationException("Could not generate a unique lobby code.");
+    }
+
+    private static string NormalizeLobbyCode(string lobbyCode)
+    {
+        return lobbyCode.Trim().ToUpperInvariant();
+    }
+
+    private static List<LobbyPlayerEntity> GetActivePlayers(LobbyEntity lobby)
+    {
+        return (lobby.LobbyPlayers ?? new List<LobbyPlayerEntity>())
+            .Where(x => x.LeftAt == null)
+            .OrderBy(x => x.JoinedAt)
+            .ToList();
     }
 }
