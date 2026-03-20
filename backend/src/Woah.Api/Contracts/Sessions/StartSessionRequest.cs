@@ -10,6 +10,9 @@ public class StartSessionRequest
     [Required]
     public Guid PlaylistId { get; set; }
 
-    [Range(5, 20)]
+    [Range(5, 60)]
     public int RoundDurationSeconds { get; set; } = 30;
+
+    [Range(3, 15)]
+    public int RevealDurationSeconds { get; set; } = 5;
 }

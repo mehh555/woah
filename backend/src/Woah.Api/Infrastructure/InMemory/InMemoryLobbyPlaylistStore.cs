@@ -1,6 +1,5 @@
 ﻿using System.Collections.Concurrent;
-using Woah.Api.Domain;
-using Woah.Api.Services;
+using Woah.Api.Services.Playlist;
 
 namespace Woah.Api.Infrastructure.InMemory;
 
@@ -8,41 +7,35 @@ public class InMemoryLobbyPlaylistStore : ILobbyPlaylistStore
 {
     public const int MaxTracks = 20;
 
-    private readonly ConcurrentDictionary<string, ConcurrentDictionary<long, LobbyDraftTrack>> _tracksByLobbyCode =
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<long, LobbyDraftTrack>> _store =
         new(StringComparer.OrdinalIgnoreCase);
 
     public IReadOnlyList<LobbyDraftTrack> GetTracks(string lobbyCode)
     {
-        if (!_tracksByLobbyCode.TryGetValue(lobbyCode.Normalize(), out var tracks))
+        if (!_store.TryGetValue(lobbyCode, out var tracks))
             return Array.Empty<LobbyDraftTrack>();
 
-        return tracks.Values
-            .OrderBy(x => x.AddedAt)
-            .ToList();
+        return tracks.Values.OrderBy(x => x.AddedAt).ToList();
     }
 
     public bool TryAddTrack(string lobbyCode, LobbyDraftTrack track)
     {
-        var key = lobbyCode.Normalize();
+        var bucket = _store.GetOrAdd(lobbyCode, _ => new ConcurrentDictionary<long, LobbyDraftTrack>());
 
-        var tracks = _tracksByLobbyCode.GetOrAdd(
-            key,
-            _ => new ConcurrentDictionary<long, LobbyDraftTrack>());
-
-        if (tracks.Count >= MaxTracks)
+        if (bucket.Count >= MaxTracks)
             return false;
 
-        return tracks.TryAdd(track.TrackId, track);
+        return bucket.TryAdd(track.TrackId, track);
     }
 
     public bool RemoveTrack(string lobbyCode, long trackId)
     {
-        if (!_tracksByLobbyCode.TryGetValue(lobbyCode.Normalize(), out var tracks))
+        if (!_store.TryGetValue(lobbyCode, out var tracks))
             return false;
 
         return tracks.TryRemove(trackId, out _);
     }
 
     public void Clear(string lobbyCode)
-        => _tracksByLobbyCode.TryRemove(lobbyCode.Normalize(), out _);
+        => _store.TryRemove(lobbyCode, out _);
 }

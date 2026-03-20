@@ -1,4 +1,4 @@
-﻿namespace Woah.Api.Services;
+﻿namespace Woah.Api.Services.Lobby;
 
 public interface ILobbyCodeGenerator
 {

@@ -1,4 +1,4 @@
-﻿namespace Woah.Api.Services;
+﻿namespace Woah.Api.Services.Session;
 
 public interface IScoreCalculator
 {

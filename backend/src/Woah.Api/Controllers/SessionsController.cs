@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Woah.Api.Contracts.Sessions;
-using Woah.Api.Services;
+using Woah.Api.Services.Session;
 
 namespace Woah.Api.Controllers;
 

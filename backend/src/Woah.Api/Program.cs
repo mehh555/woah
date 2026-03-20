@@ -5,14 +5,15 @@ using Woah.Api.Infrastructure.InMemory;
 using Woah.Api.Infrastructure.Persistence;
 using Woah.Api.Integrations.Itunes;
 using Woah.Api.Middleware;
-using Woah.Api.Services;
+using Woah.Api.Services.Lobby;
+using Woah.Api.Services.Playlist;
+using Woah.Api.Services.Session;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration.AddUserSecrets<Program>(optional: true);
 
 builder.Services.AddControllers();
-
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
@@ -24,6 +25,8 @@ builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<ILobbyPlaylistService, LobbyPlaylistService>();
 builder.Services.AddScoped<IAnswerNormalizer, AnswerNormalizer>();
 builder.Services.AddScoped<IScoreCalculator, LinearScoreCalculator>();
+builder.Services.AddScoped<SessionProgressEngine>();
+builder.Services.AddScoped<SessionStateBuilder>();
 builder.Services.AddSingleton<ILobbyCodeGenerator, LobbyCodeGenerator>();
 builder.Services.AddSingleton<ILobbyPlaylistStore, InMemoryLobbyPlaylistStore>();
 
@@ -46,14 +49,7 @@ app.UseStaticFiles();
 app.UseAuthorization();
 app.MapControllers();
 
-app.MapHealthChecks("/health/live", new HealthCheckOptions
-{
-    Predicate = check => check.Tags.Contains("live")
-});
-
-app.MapHealthChecks("/health/ready", new HealthCheckOptions
-{
-    Predicate = check => check.Tags.Contains("ready")
-});
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = c => c.Tags.Contains("live") });
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = c => c.Tags.Contains("ready") });
 
 app.Run();

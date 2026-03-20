@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Woah.Api.Contracts.Playlists;
-using Woah.Api.Services;
+using Woah.Api.Services.Playlist;
 
 namespace Woah.Api.Controllers;
 

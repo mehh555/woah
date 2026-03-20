@@ -1,4 +1,4 @@
-﻿namespace Woah.Api.Services;
+﻿namespace Woah.Api.Services.Playlist;
 
 public class LobbyDraftTrack
 {

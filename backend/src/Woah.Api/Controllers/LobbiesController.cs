@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Woah.Api.Contracts.Lobbies;
-using Woah.Api.Services;
+using Woah.Api.Services.Lobby;
 
 namespace Woah.Api.Controllers;
 

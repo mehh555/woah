@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace Woah.Api.Contracts.Sessions;
+﻿namespace Woah.Api.Contracts.Sessions;
 
 public class GetSessionStateResponse
 {
@@ -13,6 +10,7 @@ public class GetSessionStateResponse
     public bool IsFinished { get; set; }
     public int TotalRounds { get; set; }
     public int CompletedRounds { get; set; }
+    public int RevealDurationSeconds { get; set; }
     public SessionRoundResponse? CurrentRound { get; set; }
     public List<SessionLeaderboardEntryResponse> Leaderboard { get; set; } = new();
 }

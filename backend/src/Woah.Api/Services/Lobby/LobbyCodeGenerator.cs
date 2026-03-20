@@ -1,6 +1,6 @@
 ﻿using System.Security.Cryptography;
 
-namespace Woah.Api.Services;
+namespace Woah.Api.Services.Lobby;
 
 public class LobbyCodeGenerator : ILobbyCodeGenerator
 {
@@ -9,13 +9,8 @@ public class LobbyCodeGenerator : ILobbyCodeGenerator
     public string Generate(int length = 6)
     {
         var chars = new char[length];
-
         for (var i = 0; i < length; i++)
-        {
-            var index = RandomNumberGenerator.GetInt32(Alphabet.Length);
-            chars[i] = Alphabet[index];
-        }
-
+            chars[i] = Alphabet[RandomNumberGenerator.GetInt32(Alphabet.Length)];
         return new string(chars);
     }
 }
