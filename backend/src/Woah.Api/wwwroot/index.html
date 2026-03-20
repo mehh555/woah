@@ -1,0 +1,200 @@
+﻿<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="utf-8" />
+    <title>Woah - test lobby</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 16px;
+        }
+
+        h1 {
+            margin-bottom: 24px;
+        }
+
+        h2 {
+            margin-top: 32px;
+        }
+
+        .section {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+
+        .field {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            max-width: 320px;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 10px 16px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .result {
+            margin-top: 16px;
+            padding: 16px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: #f7f7f7;
+            white-space: pre-wrap;
+        }
+
+        .error {
+            color: #b00020;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Woah - test lobby</h1>
+
+    <div class="section">
+        <h2>CreateLobby</h2>
+
+        <div class="field">
+            <label for="hostNick">Nick hosta</label>
+            <input id="hostNick" type="text" value="Tom" />
+        </div>
+
+        <div class="field">
+            <label for="maxPlayers">Maksymalna liczba graczy</label>
+            <input id="maxPlayers" type="number" value="8" min="2" max="20" />
+        </div>
+
+        <button id="createLobbyButton">Utwórz lobby</button>
+
+        <div id="createLobbyResult" class="result">Tutaj pojawi się odpowiedź dla CreateLobby.</div>
+    </div>
+
+    <div class="section">
+        <h2>JoinLobby</h2>
+
+        <div class="field">
+            <label for="joinLobbyCode">Kod lobby</label>
+            <input id="joinLobbyCode" type="text" />
+        </div>
+
+        <div class="field">
+            <label for="joinNick">Nick gracza</label>
+            <input id="joinNick" type="text" value="Alice" />
+        </div>
+
+        <button id="joinLobbyButton">Dołącz do lobby</button>
+
+        <div id="joinLobbyResult" class="result">Tutaj pojawi się odpowiedź dla JoinLobby.</div>
+    </div>
+
+    <script>
+        const hostNickInput = document.getElementById("hostNick");
+        const maxPlayersInput = document.getElementById("maxPlayers");
+        const createLobbyButton = document.getElementById("createLobbyButton");
+        const createLobbyResult = document.getElementById("createLobbyResult");
+
+        const joinLobbyCodeInput = document.getElementById("joinLobbyCode");
+        const joinNickInput = document.getElementById("joinNick");
+        const joinLobbyButton = document.getElementById("joinLobbyButton");
+        const joinLobbyResult = document.getElementById("joinLobbyResult");
+
+        createLobbyButton.addEventListener("click", async () => {
+            createLobbyResult.classList.remove("error");
+            createLobbyResult.textContent = "Wysyłanie żądania...";
+
+            const payload = {
+                hostNick: hostNickInput.value,
+                maxPlayers: Number(maxPlayersInput.value)
+            };
+
+            try {
+                const response = await fetch("/api/lobbies", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const body = await readResponseBody(response);
+
+                createLobbyResult.textContent =
+                    "Status: " + response.status + "\n\n" +
+                    JSON.stringify(body, null, 2);
+
+                if (!response.ok) {
+                    createLobbyResult.classList.add("error");
+                    return;
+                }
+
+                if (body && body.lobbyCode) {
+                    joinLobbyCodeInput.value = body.lobbyCode;
+                }
+            } catch (error) {
+                createLobbyResult.classList.add("error");
+                createLobbyResult.textContent = "Błąd połączenia:\n\n" + error;
+            }
+        });
+
+        joinLobbyButton.addEventListener("click", async () => {
+            joinLobbyResult.classList.remove("error");
+            joinLobbyResult.textContent = "Wysyłanie żądania...";
+
+            const lobbyCode = joinLobbyCodeInput.value.trim();
+
+            const payload = {
+                nick: joinNickInput.value
+            };
+
+            try {
+                const response = await fetch(`/api/lobbies/${encodeURIComponent(lobbyCode)}/join`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const body = await readResponseBody(response);
+
+                joinLobbyResult.textContent =
+                    "Status: " + response.status + "\n\n" +
+                    JSON.stringify(body, null, 2);
+
+                if (!response.ok) {
+                    joinLobbyResult.classList.add("error");
+                }
+            } catch (error) {
+                joinLobbyResult.classList.add("error");
+                joinLobbyResult.textContent = "Błąd połączenia:\n\n" + error;
+            }
+        });
+
+        async function readResponseBody(response) {
+            const responseText = await response.text();
+
+            try {
+                return JSON.parse(responseText);
+            } catch {
+                return responseText;
+            }
+        }
+    </script>
+</body>
+</html>

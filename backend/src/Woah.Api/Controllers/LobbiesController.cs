@@ -25,4 +25,23 @@ public class LobbiesController : ControllerBase
         var response = await _lobbyService.CreateLobbyAsync(request, cancellationToken);
         return Ok(response);
     }
+
+    [HttpPost("{lobbyCode}/join")]
+    [ProducesResponseType(typeof(JoinLobbyResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<JoinLobbyResponse>> JoinLobby(
+        [FromRoute] string lobbyCode,
+        [FromBody] JoinLobbyRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _lobbyService.JoinLobbyAsync(lobbyCode, request, cancellationToken);
+            return Ok(response);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+    }
 }

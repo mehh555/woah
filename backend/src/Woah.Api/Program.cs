@@ -23,8 +23,10 @@ builder.Services.AddHealthChecks()
 var app = builder.Build();
 
 app.UseHttpsRedirection();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseAuthorization();
-app.MapControllers();
+app.MapControllers();   
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {

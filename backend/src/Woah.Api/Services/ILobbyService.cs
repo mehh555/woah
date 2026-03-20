@@ -9,4 +9,9 @@ public interface ILobbyService
     Task<CreateLobbyResponse> CreateLobbyAsync(
         CreateLobbyRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<JoinLobbyResponse> JoinLobbyAsync(
+        string lobbyCode,
+        JoinLobbyRequest request,
+        CancellationToken cancellationToken = default);
 }
