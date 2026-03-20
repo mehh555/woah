@@ -10,5 +10,5 @@ public class StartSessionResponse
     public Guid HostPlayerId { get; set; }
     public DateTime StartedAt { get; set; }
     public string LobbyStatus { get; set; } = default!;
-    public string SettingsJson { get; set; } = default!;
+    public int RoundCount { get; set; }
 }

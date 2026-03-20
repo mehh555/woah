@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Woah.Api.Infrastructure.Persistence;
+using Woah.Api.Integrations.Itunes;
 using Woah.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,9 +13,20 @@ builder.Services.AddControllers();
 
 builder.Services.AddDbContext<WoahDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("WoahDb")));
-builder.Services.AddScoped<ISessionService, SessionService>();
+
 builder.Services.AddScoped<ILobbyService, LobbyService>();
+builder.Services.AddScoped<ISessionService, SessionService>();
+builder.Services.AddScoped<ILobbyPlaylistService, LobbyPlaylistService>();
+builder.Services.AddScoped<IAnswerNormalizer, AnswerNormalizer>();
+builder.Services.AddScoped<IScoreCalculator, LinearScoreCalculator>();
 builder.Services.AddSingleton<ILobbyCodeGenerator, LobbyCodeGenerator>();
+builder.Services.AddSingleton<ILobbyPlaylistStore, InMemoryLobbyPlaylistStore>();
+
+builder.Services.AddHttpClient<ItunesApiClient>(client =>
+{
+    client.BaseAddress = new Uri("https://itunes.apple.com/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
 
 builder.Services.AddHealthChecks()
     .AddCheck("live", () => HealthCheckResult.Healthy(), tags: new[] { "live" })
@@ -26,7 +38,7 @@ app.UseHttpsRedirection();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseAuthorization();
-app.MapControllers();   
+app.MapControllers();
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {

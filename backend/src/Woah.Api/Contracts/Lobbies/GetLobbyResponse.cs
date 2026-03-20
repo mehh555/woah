@@ -11,5 +11,6 @@ public class GetLobbyResponse
     public int MaxPlayers { get; set; }
     public Guid HostPlayerId { get; set; }
     public int PlayerCount { get; set; }
+    public Guid? CurrentSessionId { get; set; }
     public List<LobbyPlayerResponse> Players { get; set; } = new();
 }

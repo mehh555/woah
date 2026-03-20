@@ -22,11 +22,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Contracts\Playlists\" />
-    <Folder Include="Integrations\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\Woah.Core\Woah.Core.csproj" />
   </ItemGroup>
 

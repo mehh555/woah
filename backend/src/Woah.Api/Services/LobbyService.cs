@@ -150,8 +150,8 @@ public class LobbyService : ILobbyService
     }
 
     public async Task<GetLobbyResponse> GetLobbyAsync(
-        string lobbyCode,
-        CancellationToken cancellationToken = default)
+    string lobbyCode,
+    CancellationToken cancellationToken = default)
     {
         var normalizedLobbyCode = NormalizeLobbyCode(lobbyCode);
 
@@ -166,6 +166,11 @@ public class LobbyService : ILobbyService
 
         var activePlayers = GetActivePlayers(lobby);
 
+        var currentSessionId = await _dbContext.GameSessions
+            .Where(x => x.LobbyId == lobby.LobbyId && x.EndedAt == null)
+            .Select(x => (Guid?)x.SessionId)
+            .FirstOrDefaultAsync(cancellationToken);
+
         return new GetLobbyResponse
         {
             LobbyId = lobby.LobbyId,
@@ -174,6 +179,7 @@ public class LobbyService : ILobbyService
             MaxPlayers = lobby.MaxPlayers,
             HostPlayerId = lobby.HostPlayerId,
             PlayerCount = activePlayers.Count,
+            CurrentSessionId = currentSessionId,
             Players = activePlayers.Select(x => new LobbyPlayerResponse
             {
                 PlayerId = x.PlayerId,
