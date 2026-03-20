@@ -185,9 +185,9 @@ public class LobbyService : ILobbyService
     }
 
     public async Task<LeaveLobbyResponse> LeaveLobbyAsync(
-        string lobbyCode,
-        LeaveLobbyRequest request,
-        CancellationToken cancellationToken = default)
+    string lobbyCode,
+    LeaveLobbyRequest request,
+    CancellationToken cancellationToken = default)
     {
         var normalizedLobbyCode = NormalizeLobbyCode(lobbyCode);
         var now = DateTime.UtcNow;
@@ -216,26 +216,19 @@ public class LobbyService : ILobbyService
 
         var wasHost = lobby.HostPlayerId == request.PlayerId;
 
-        membership.LeftAt = now;
-
-        Guid? newHostPlayerId = null;
-
-        var remainingActivePlayers = GetActivePlayers(lobby)
-            .Where(x => x.PlayerId != request.PlayerId)
-            .ToList();
-
-        if (remainingActivePlayers.Count == 0)
+        if (wasHost)
         {
+            foreach (var activeMembership in (lobby.LobbyPlayers ?? new List<LobbyPlayerEntity>())
+                         .Where(x => x.LeftAt == null))
+            {
+                activeMembership.LeftAt = now;
+            }
+
             lobby.Status = "Finished";
         }
-        else if (wasHost)
+        else
         {
-            var newHost = remainingActivePlayers
-                .OrderBy(x => x.JoinedAt)
-                .First();
-
-            lobby.HostPlayerId = newHost.PlayerId;
-            newHostPlayerId = newHost.PlayerId;
+            membership.LeftAt = now;
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -246,7 +239,7 @@ public class LobbyService : ILobbyService
             LobbyCode = lobby.Code,
             PlayerId = request.PlayerId,
             WasHost = wasHost,
-            NewHostPlayerId = newHostPlayerId,
+            NewHostPlayerId = null,
             LobbyStatus = lobby.Status
         };
     }
