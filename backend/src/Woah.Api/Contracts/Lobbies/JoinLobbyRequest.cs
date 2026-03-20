@@ -5,7 +5,7 @@ namespace Woah.Api.Contracts.Lobbies;
 public class JoinLobbyRequest
 {
     [Required]
-    [MinLength(2)]
-    [MaxLength(32)]
+    [MinLength(1)]
+    [MaxLength(30)]
     public string Nick { get; set; } = default!;
 }

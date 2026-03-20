@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Woah.Api.Contracts.Sessions;
+﻿namespace Woah.Api.Contracts.Sessions;
 
 public class SessionRoundResponse
 {
@@ -8,7 +6,7 @@ public class SessionRoundResponse
     public int RoundNo { get; set; }
     public string State { get; set; } = default!;
     public string PreviewUrl { get; set; } = default!;
-    public DateTime StartedAt { get; set; }
+    public DateTime? StartedAt { get; set; }
     public DateTime? EndsAt { get; set; }
     public DateTime? RevealedAt { get; set; }
     public string? AnswerTitle { get; set; }

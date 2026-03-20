@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Woah.Api.Infrastructure.InMemory;
 using Woah.Api.Infrastructure.Persistence;
 using Woah.Api.Integrations.Itunes;
+using Woah.Api.Middleware;
 using Woah.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +12,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddUserSecrets<Program>(optional: true);
 
 builder.Services.AddControllers();
+
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 builder.Services.AddDbContext<WoahDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("WoahDb")));
@@ -34,6 +39,7 @@ builder.Services.AddHealthChecks()
 
 var app = builder.Build();
 
+app.UseExceptionHandler();
 app.UseHttpsRedirection();
 app.UseDefaultFiles();
 app.UseStaticFiles();

@@ -1,6 +1,8 @@
 ﻿using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Woah.Api.Contracts.Sessions;
+using Woah.Api.Domain;
+using Woah.Api.Exceptions;
 using Woah.Api.Infrastructure.Persistence;
 using Woah.Api.Infrastructure.Persistence.Models;
 
@@ -30,47 +32,29 @@ public class SessionService : ISessionService
         StartSessionRequest request,
         CancellationToken cancellationToken = default)
     {
-        var normalizedLobbyCode = NormalizeLobbyCode(lobbyCode);
+        var normalizedCode = lobbyCode.NormalizeCode();
         var now = DateTime.UtcNow;
 
         var lobby = await _dbContext.Lobbies
             .Include(x => x.LobbyPlayers)
-            .FirstOrDefaultAsync(x => x.Code == normalizedLobbyCode, cancellationToken);
+            .FirstOrDefaultAsync(x => x.Code == normalizedCode, cancellationToken);
 
         if (lobby is null)
-        {
-            throw new InvalidOperationException("Lobby not found.");
-        }
+            throw new NotFoundException("Lobby not found.");
 
-        if (lobby.Status != "Waiting")
-        {
+        if (lobby.Status != LobbyStatus.Waiting)
             throw new InvalidOperationException("Only waiting lobbies can start a session.");
-        }
 
         if (lobby.HostPlayerId != request.HostPlayerId)
-        {
-            throw new InvalidOperationException("Only the host can start the session.");
-        }
+            throw new ForbiddenException("Only the host can start the session.");
 
-        var activePlayers = GetActivePlayers(lobby);
+        var activePlayers = lobby.ActivePlayers();
 
         if (!activePlayers.Any(x => x.PlayerId == request.HostPlayerId))
-        {
             throw new InvalidOperationException("Host is not active in this lobby.");
-        }
 
         if (activePlayers.Count < 1)
-        {
             throw new InvalidOperationException("At least one active player is required.");
-        }
-
-        var existingActiveSession = await _dbContext.GameSessions
-            .AnyAsync(x => x.LobbyId == lobby.LobbyId && x.EndedAt == null, cancellationToken);
-
-        if (existingActiveSession)
-        {
-            throw new InvalidOperationException("An active session already exists for this lobby.");
-        }
 
         var playlist = await _dbContext.Playlists
             .FirstOrDefaultAsync(
@@ -78,82 +62,89 @@ public class SessionService : ISessionService
                 cancellationToken);
 
         if (playlist is null)
-        {
-            throw new InvalidOperationException("Playlist placeholder not found for this host.");
-        }
+            throw new NotFoundException("Playlist not found for this host.");
 
         var draftTracks = _lobbyPlaylistStore.GetTracks(lobby.Code).ToList();
 
         if (draftTracks.Count == 0)
-        {
-            throw new InvalidOperationException("Lobby playlist must contain at least one track before starting the session.");
-        }
+            throw new InvalidOperationException("Playlist must contain at least one track before starting.");
 
         var roundDurationSeconds = Math.Clamp(request.RoundDurationSeconds, 5, 60);
-
         Shuffle(draftTracks);
 
-        var settingsJson = JsonSerializer.Serialize(new
-        {
-            roundDurationSeconds = roundDurationSeconds
-        });
+        var settingsJson = JsonSerializer.Serialize(new { roundDurationSeconds });
 
-        var session = new GameSessionEntity
+        await using var tx = await _dbContext.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable, cancellationToken);
+        try
         {
-            SessionId = Guid.NewGuid(),
-            LobbyId = lobby.LobbyId,
-            PlaylistId = playlist.PlaylistId,
-            StartedAt = now,
-            EndedAt = null,
-            SettingsJson = settingsJson,
-            Lobby = lobby,
-            Playlist = playlist,
-            Rounds = new List<RoundEntity>()
-        };
+            var existingActiveSession = await _dbContext.GameSessions
+                .AnyAsync(x => x.LobbyId == lobby.LobbyId && x.EndedAt == null, cancellationToken);
 
-        for (var index = 0; index < draftTracks.Count; index++)
-        {
-            var track = draftTracks[index];
-            var isFirstRound = index == 0;
+            if (existingActiveSession)
+                throw new InvalidOperationException("An active session already exists for this lobby.");
 
-            var round = new RoundEntity
+            var session = new GameSessionEntity
             {
-                RoundId = Guid.NewGuid(),
-                SessionId = session.SessionId,
-                Session = session,
-                RoundNo = index + 1,
+                SessionId = Guid.NewGuid(),
+                LobbyId = lobby.LobbyId,
                 PlaylistId = playlist.PlaylistId,
-                PlaylistItemNumber = index + 1,
-                PreviewUrl = track.PreviewUrl,
-                AnswerTitle = track.Title,
-                AnswerNorm = _answerNormalizer.Normalize(track.Title),
-                StartedAt = isFirstRound ? now : now,
-                EndsAt = isFirstRound ? now.AddSeconds(roundDurationSeconds) : null,
-                RevealedAt = null,
-                State = isFirstRound ? "Playing" : "Pending",
-                CorrectAnswers = new List<RoundCorrectAnswerEntity>()
+                StartedAt = now,
+                EndedAt = null,
+                SettingsJson = settingsJson,
+                Lobby = lobby,
+                Playlist = playlist,
+                Rounds = new List<RoundEntity>()
             };
 
-            session.Rounds.Add(round);
+            for (var index = 0; index < draftTracks.Count; index++)
+            {
+                var track = draftTracks[index];
+                var isFirstRound = index == 0;
+
+                session.Rounds.Add(new RoundEntity
+                {
+                    RoundId = Guid.NewGuid(),
+                    SessionId = session.SessionId,
+                    Session = session,
+                    RoundNo = index + 1,
+                    PlaylistId = playlist.PlaylistId,
+                    PlaylistItemNumber = index + 1,
+                    PreviewUrl = track.PreviewUrl,
+                    AnswerTitle = track.Title,
+                    AnswerNorm = _answerNormalizer.Normalize(track.Title),
+                    StartedAt = isFirstRound ? now : default,
+                    EndsAt = isFirstRound ? now.AddSeconds(roundDurationSeconds) : null,
+                    RevealedAt = null,
+                    State = isFirstRound ? RoundState.Playing : RoundState.Pending,
+                    CorrectAnswers = new List<RoundCorrectAnswerEntity>()
+                });
+            }
+
+            lobby.Status = LobbyStatus.InGame;
+
+            _dbContext.GameSessions.Add(session);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await tx.CommitAsync(cancellationToken);
+
+            _lobbyPlaylistStore.Clear(lobby.Code);
+
+            return new StartSessionResponse
+            {
+                SessionId = session.SessionId,
+                LobbyId = lobby.LobbyId,
+                PlaylistId = playlist.PlaylistId,
+                HostPlayerId = request.HostPlayerId,
+                StartedAt = session.StartedAt,
+                LobbyStatus = lobby.Status,
+                RoundCount = session.Rounds.Count
+            };
         }
-
-        lobby.Status = "InGame";
-
-        _dbContext.GameSessions.Add(session);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        _lobbyPlaylistStore.Clear(lobby.Code);
-
-        return new StartSessionResponse
+        catch
         {
-            SessionId = session.SessionId,
-            LobbyId = lobby.LobbyId,
-            PlaylistId = playlist.PlaylistId,
-            HostPlayerId = request.HostPlayerId,
-            StartedAt = session.StartedAt,
-            LobbyStatus = lobby.Status,
-            RoundCount = session.Rounds.Count
-        };
+            await tx.RollbackAsync(cancellationToken);
+            throw;
+        }
     }
 
     public async Task<GetSessionStateResponse> GetSessionStateAsync(
@@ -161,9 +152,7 @@ public class SessionService : ISessionService
         CancellationToken cancellationToken = default)
     {
         var session = await LoadSessionAggregateAsync(sessionId, cancellationToken);
-
         await EnsureSessionProgressAsync(session, cancellationToken);
-
         return await BuildSessionStateAsync(session, cancellationToken);
     }
 
@@ -173,88 +162,41 @@ public class SessionService : ISessionService
         CancellationToken cancellationToken = default)
     {
         var session = await LoadSessionAggregateAsync(sessionId, cancellationToken);
-
         await EnsureSessionProgressAsync(session, cancellationToken);
 
         if (session.EndedAt is not null)
-        {
-            return new SubmitAnswerResponse
-            {
-                Accepted = false,
-                IsCorrect = false,
-                AlreadyAnswered = false,
-                PointsAwarded = 0,
-                Message = "Session has already finished."
-            };
-        }
+            return Reject("Session has already finished.");
 
         var lobby = await _dbContext.Lobbies
             .Include(x => x.LobbyPlayers)
             .FirstAsync(x => x.LobbyId == session.LobbyId, cancellationToken);
 
-        var playerIsActive = GetActivePlayers(lobby)
-            .Any(x => x.PlayerId == request.PlayerId);
-
-        if (!playerIsActive)
-        {
-            return new SubmitAnswerResponse
-            {
-                Accepted = false,
-                IsCorrect = false,
-                AlreadyAnswered = false,
-                PointsAwarded = 0,
-                Message = "Player is not active in this lobby."
-            };
-        }
+        if (!lobby.ActivePlayers().Any(x => x.PlayerId == request.PlayerId))
+            return Reject("Player is not active in this lobby.");
 
         var currentRound = session.Rounds?
             .OrderBy(x => x.RoundNo)
-            .FirstOrDefault(x => x.State == "Playing");
+            .FirstOrDefault(x => x.State == RoundState.Playing);
 
         if (currentRound is null)
-        {
-            return new SubmitAnswerResponse
-            {
-                Accepted = false,
-                IsCorrect = false,
-                AlreadyAnswered = false,
-                PointsAwarded = 0,
-                Message = "There is no active round to answer."
-            };
-        }
+            return Reject("There is no active round to answer.");
 
         if (currentRound.EndsAt is not null && DateTime.UtcNow >= currentRound.EndsAt.Value)
         {
             await EnsureSessionProgressAsync(session, cancellationToken);
-
-            return new SubmitAnswerResponse
-            {
-                Accepted = false,
-                IsCorrect = false,
-                AlreadyAnswered = false,
-                PointsAwarded = 0,
-                Message = "Round has already ended."
-            };
+            return Reject("Round has already ended.");
         }
 
-        var alreadyAnsweredCorrectly = (currentRound.CorrectAnswers ?? new List<RoundCorrectAnswerEntity>())
+        var alreadyAnswered = (currentRound.CorrectAnswers ?? new List<RoundCorrectAnswerEntity>())
             .Any(x => x.PlayerId == request.PlayerId);
 
-        if (alreadyAnsweredCorrectly)
-        {
-            return new SubmitAnswerResponse
-            {
-                Accepted = true,
-                IsCorrect = true,
-                AlreadyAnswered = true,
-                PointsAwarded = 0,
-                Message = "Player has already answered this round correctly."
-            };
-        }
+        if (alreadyAnswered)
+            return AlreadyAnswered();
 
-        var normalizedAnswer = _answerNormalizer.Normalize(request.Answer);
-
-        if (!string.Equals(normalizedAnswer, currentRound.AnswerNorm, StringComparison.Ordinal))
+        if (!string.Equals(
+                _answerNormalizer.Normalize(request.Answer),
+                currentRound.AnswerNorm,
+                StringComparison.Ordinal))
         {
             return new SubmitAnswerResponse
             {
@@ -266,20 +208,26 @@ public class SessionService : ISessionService
             };
         }
 
-        var roundDurationSeconds = GetRoundDurationSeconds(session);
         var elapsedSeconds = Math.Max((DateTime.UtcNow - currentRound.StartedAt).TotalSeconds, 0);
+
+        var roundDurationSeconds = GetRoundDurationSeconds(session);
         var points = _scoreCalculator.Calculate(roundDurationSeconds, elapsedSeconds);
 
-        var answer = new RoundCorrectAnswerEntity
+        try
         {
-            RoundId = currentRound.RoundId,
-            PlayerId = request.PlayerId,
-            AnsweredAt = DateTime.UtcNow,
-            Points = points
-        };
-
-        _dbContext.RoundCorrectAnswers.Add(answer);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+            _dbContext.RoundCorrectAnswers.Add(new RoundCorrectAnswerEntity
+            {
+                RoundId = currentRound.RoundId,
+                PlayerId = request.PlayerId,
+                AnsweredAt = DateTime.UtcNow,
+                Points = points
+            });
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            return AlreadyAnswered();
+        }
 
         return new SubmitAnswerResponse
         {
@@ -302,49 +250,41 @@ public class SessionService : ISessionService
             .FirstAsync(x => x.LobbyId == session.LobbyId, cancellationToken);
 
         if (lobby.HostPlayerId != request.HostPlayerId)
-        {
-            throw new InvalidOperationException("Only the host can advance the session.");
-        }
+            throw new ForbiddenException("Only the host can advance the session.");
 
         await EnsureSessionProgressAsync(session, cancellationToken);
 
         if (session.EndedAt is not null)
-        {
             return await BuildSessionStateAsync(session, cancellationToken);
-        }
 
         var orderedRounds = (session.Rounds ?? new List<RoundEntity>())
             .OrderBy(x => x.RoundNo)
             .ToList();
 
-        var currentPlaying = orderedRounds.FirstOrDefault(x => x.State == "Playing");
-
+        var currentPlaying = orderedRounds.FirstOrDefault(x => x.State == RoundState.Playing);
         if (currentPlaying is not null)
         {
-            currentPlaying.State = "Revealed";
+            currentPlaying.State = RoundState.Revealed;
             currentPlaying.RevealedAt = DateTime.UtcNow;
             await _dbContext.SaveChangesAsync(cancellationToken);
-
             return await BuildSessionStateAsync(session, cancellationToken);
         }
 
-        var currentRevealed = orderedRounds.FirstOrDefault(x => x.State == "Revealed");
-
+        var currentRevealed = orderedRounds.FirstOrDefault(x => x.State == RoundState.Revealed);
         if (currentRevealed is not null)
         {
-            currentRevealed.State = "Finished";
+            currentRevealed.State = RoundState.Finished;
 
-            var nextPending = orderedRounds.FirstOrDefault(x => x.State == "Pending");
-
+            var nextPending = orderedRounds.FirstOrDefault(x => x.State == RoundState.Pending);
             if (nextPending is null)
             {
                 session.EndedAt = DateTime.UtcNow;
-                lobby.Status = "Finished";
+                lobby.Status = LobbyStatus.Finished;
             }
             else
             {
                 var roundDurationSeconds = GetRoundDurationSeconds(session);
-                nextPending.State = "Playing";
+                nextPending.State = RoundState.Playing;
                 nextPending.StartedAt = DateTime.UtcNow;
                 nextPending.EndsAt = nextPending.StartedAt.AddSeconds(roundDurationSeconds);
                 nextPending.RevealedAt = null;
@@ -356,80 +296,69 @@ public class SessionService : ISessionService
         return await BuildSessionStateAsync(session, cancellationToken);
     }
 
-    private async Task<GameSessionEntity> LoadSessionAggregateAsync(Guid sessionId, CancellationToken cancellationToken)
+
+    private async Task<GameSessionEntity> LoadSessionAggregateAsync(Guid sessionId, CancellationToken ct)
     {
         var session = await _dbContext.GameSessions
             .Include(x => x.Rounds)
                 .ThenInclude(x => x.CorrectAnswers)
-            .FirstOrDefaultAsync(x => x.SessionId == sessionId, cancellationToken);
+            .FirstOrDefaultAsync(x => x.SessionId == sessionId, ct);
 
-        if (session is null)
-        {
-            throw new InvalidOperationException("Session not found.");
-        }
-
-        return session;
+        return session ?? throw new NotFoundException("Session not found.");
     }
 
-    private async Task EnsureSessionProgressAsync(GameSessionEntity session, CancellationToken cancellationToken)
+    private async Task EnsureSessionProgressAsync(GameSessionEntity session, CancellationToken ct)
     {
-        if (session.EndedAt is not null)
-        {
-            return;
-        }
+        if (session.EndedAt is not null) return;
 
         var currentPlaying = (session.Rounds ?? new List<RoundEntity>())
             .OrderBy(x => x.RoundNo)
-            .FirstOrDefault(x => x.State == "Playing");
+            .FirstOrDefault(x => x.State == RoundState.Playing);
 
-        if (currentPlaying is not null &&
-            currentPlaying.EndsAt is not null &&
-            DateTime.UtcNow >= currentPlaying.EndsAt.Value)
+        if (currentPlaying?.EndsAt is not null && DateTime.UtcNow >= currentPlaying.EndsAt.Value)
         {
-            currentPlaying.State = "Revealed";
+            currentPlaying.State = RoundState.Revealed;
             currentPlaying.RevealedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            await _dbContext.SaveChangesAsync(ct);
         }
     }
 
     private async Task<GetSessionStateResponse> BuildSessionStateAsync(
         GameSessionEntity session,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var lobby = await _dbContext.Lobbies
             .Include(x => x.LobbyPlayers)
-            .FirstAsync(x => x.LobbyId == session.LobbyId, cancellationToken);
+            .FirstAsync(x => x.LobbyId == session.LobbyId, ct);
 
         var orderedRounds = (session.Rounds ?? new List<RoundEntity>())
             .OrderBy(x => x.RoundNo)
             .ToList();
 
-        var currentRound = orderedRounds
-            .FirstOrDefault(x => x.State == "Playing")
-            ?? orderedRounds.FirstOrDefault(x => x.State == "Revealed");
+        var currentRound = orderedRounds.FirstOrDefault(x => x.State == RoundState.Playing)
+                           ?? orderedRounds.FirstOrDefault(x => x.State == RoundState.Revealed);
 
-        var activePlayers = GetActivePlayers(lobby);
+        var activePlayers = lobby.ActivePlayers();
 
-        var leaderboard = activePlayers
-            .Select(player =>
+        var leaderboard = activePlayers.Select(player =>
+        {
+            var answers = orderedRounds
+                .SelectMany(x => x.CorrectAnswers ?? new List<RoundCorrectAnswerEntity>())
+                .Where(x => x.PlayerId == player.PlayerId)
+                .ToList();
+
+            return new SessionLeaderboardEntryResponse
             {
-                var playerAnswers = orderedRounds
-                    .SelectMany(x => x.CorrectAnswers ?? new List<RoundCorrectAnswerEntity>())
-                    .Where(x => x.PlayerId == player.PlayerId)
-                    .ToList();
-
-                return new SessionLeaderboardEntryResponse
-                {
-                    PlayerId = player.PlayerId,
-                    Nick = player.Nick,
-                    Score = playerAnswers.Sum(x => x.Points),
-                    CorrectAnswers = playerAnswers.Count
-                };
-            })
-            .OrderByDescending(x => x.Score)
-            .ThenByDescending(x => x.CorrectAnswers)
-            .ThenBy(x => x.Nick)
-            .ToList();
+                PlayerId = player.PlayerId,
+                Nick = player.Nick,
+                Score = answers.Sum(x => x.Points),
+                CorrectAnswers = answers.Count
+            };
+        })
+        .OrderByDescending(x => x.Score)
+        .ThenByDescending(x => x.CorrectAnswers)
+        .ThenBy(x => x.Nick)
+        .ToList();
 
         return new GetSessionStateResponse
         {
@@ -440,56 +369,32 @@ public class SessionService : ISessionService
             EndedAt = session.EndedAt,
             IsFinished = session.EndedAt is not null,
             TotalRounds = orderedRounds.Count,
-            CompletedRounds = orderedRounds.Count(x => x.State == "Finished"),
-            CurrentRound = currentRound is null
-                ? null
-                : new SessionRoundResponse
-                {
-                    RoundId = currentRound.RoundId,
-                    RoundNo = currentRound.RoundNo,
-                    State = currentRound.State,
-                    PreviewUrl = currentRound.PreviewUrl,
-                    StartedAt = currentRound.StartedAt,
-                    EndsAt = currentRound.EndsAt,
-                    RevealedAt = currentRound.RevealedAt,
-                    AnswerTitle = currentRound.State == "Revealed" || currentRound.State == "Finished"
-                        ? currentRound.AnswerTitle
-                        : null,
-                    CorrectAnswerCount = (currentRound.CorrectAnswers ?? new List<RoundCorrectAnswerEntity>()).Count
-                },
+            CompletedRounds = orderedRounds.Count(x => x.State == RoundState.Finished),
+            CurrentRound = currentRound is null ? null : new SessionRoundResponse
+            {
+                RoundId = currentRound.RoundId,
+                RoundNo = currentRound.RoundNo,
+                State = currentRound.State,
+                PreviewUrl = currentRound.PreviewUrl,
+                StartedAt = currentRound.StartedAt,
+                EndsAt = currentRound.EndsAt,
+                RevealedAt = currentRound.RevealedAt,
+                AnswerTitle = currentRound.State is RoundState.Revealed or RoundState.Finished
+                    ? currentRound.AnswerTitle : null,
+                CorrectAnswerCount = (currentRound.CorrectAnswers ?? new List<RoundCorrectAnswerEntity>()).Count
+            },
             Leaderboard = leaderboard
         };
     }
 
-    private static List<LobbyPlayerEntity> GetActivePlayers(LobbyEntity lobby)
-    {
-        return (lobby.LobbyPlayers ?? new List<LobbyPlayerEntity>())
-            .Where(x => x.LeftAt == null)
-            .OrderBy(x => x.JoinedAt)
-            .ToList();
-    }
-
-    private static string NormalizeLobbyCode(string lobbyCode)
-    {
-        return lobbyCode.Trim().ToUpperInvariant();
-    }
-
     private static int GetRoundDurationSeconds(GameSessionEntity session)
     {
-        if (string.IsNullOrWhiteSpace(session.SettingsJson))
-        {
-            return 15;
-        }
+        if (string.IsNullOrWhiteSpace(session.SettingsJson)) return 15;
 
-        using var document = JsonDocument.Parse(session.SettingsJson);
-
-        if (document.RootElement.TryGetProperty("roundDurationSeconds", out var property) &&
-            property.TryGetInt32(out var value))
-        {
-            return Math.Clamp(value, 5, 60);
-        }
-
-        return 15;
+        using var doc = JsonDocument.Parse(session.SettingsJson);
+        return doc.RootElement.TryGetProperty("roundDurationSeconds", out var prop) && prop.TryGetInt32(out var val)
+            ? Math.Clamp(val, 5, 60)
+            : 15;
     }
 
     private static void Shuffle<T>(IList<T> list)
@@ -500,4 +405,10 @@ public class SessionService : ISessionService
             (list[i], list[j]) = (list[j], list[i]);
         }
     }
+
+    private static SubmitAnswerResponse Reject(string message) =>
+        new() { Accepted = false, IsCorrect = false, AlreadyAnswered = false, PointsAwarded = 0, Message = message };
+
+    private static SubmitAnswerResponse AlreadyAnswered() =>
+        new() { Accepted = true, IsCorrect = true, AlreadyAnswered = true, PointsAwarded = 0, Message = "Player has already answered this round correctly." };
 }

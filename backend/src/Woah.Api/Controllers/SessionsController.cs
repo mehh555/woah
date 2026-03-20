@@ -9,83 +9,25 @@ public class SessionsController : ControllerBase
 {
     private readonly ISessionService _sessionService;
 
-    public SessionsController(ISessionService sessionService)
-    {
-        _sessionService = sessionService;
-    }
+    public SessionsController(ISessionService sessionService) => _sessionService = sessionService;
 
     [HttpPost("api/lobbies/{lobbyCode}/session")]
-    [ProducesResponseType(typeof(StartSessionResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<StartSessionResponse>> StartSession(
-        [FromRoute] string lobbyCode,
-        [FromBody] StartSessionRequest request,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var response = await _sessionService.StartSessionAsync(lobbyCode, request, cancellationToken);
-            return Ok(response);
-        }
-        catch (InvalidOperationException exception)
-        {
-            return BadRequest(new { message = exception.Message });
-        }
-    }
+        [FromRoute] string lobbyCode, [FromBody] StartSessionRequest request, CancellationToken ct)
+        => Ok(await _sessionService.StartSessionAsync(lobbyCode, request, ct));
 
     [HttpGet("api/sessions/{sessionId:guid}")]
-    [ProducesResponseType(typeof(GetSessionStateResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<GetSessionStateResponse>> GetSessionState(
-        [FromRoute] Guid sessionId,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var response = await _sessionService.GetSessionStateAsync(sessionId, cancellationToken);
-            return Ok(response);
-        }
-        catch (InvalidOperationException exception)
-        {
-            return BadRequest(new { message = exception.Message });
-        }
-    }
+        [FromRoute] Guid sessionId, CancellationToken ct)
+        => Ok(await _sessionService.GetSessionStateAsync(sessionId, ct));
 
     [HttpPost("api/sessions/{sessionId:guid}/answer")]
-    [ProducesResponseType(typeof(SubmitAnswerResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<SubmitAnswerResponse>> SubmitAnswer(
-        [FromRoute] Guid sessionId,
-        [FromBody] SubmitAnswerRequest request,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var response = await _sessionService.SubmitAnswerAsync(sessionId, request, cancellationToken);
-            return Ok(response);
-        }
-        catch (InvalidOperationException exception)
-        {
-            return BadRequest(new { message = exception.Message });
-        }
-    }
+        [FromRoute] Guid sessionId, [FromBody] SubmitAnswerRequest request, CancellationToken ct)
+        => Ok(await _sessionService.SubmitAnswerAsync(sessionId, request, ct));
 
     [HttpPost("api/sessions/{sessionId:guid}/advance")]
-    [ProducesResponseType(typeof(GetSessionStateResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<GetSessionStateResponse>> AdvanceSession(
-        [FromRoute] Guid sessionId,
-        [FromBody] AdvanceSessionRequest request,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var response = await _sessionService.AdvanceSessionAsync(sessionId, request, cancellationToken);
-            return Ok(response);
-        }
-        catch (InvalidOperationException exception)
-        {
-            return BadRequest(new { message = exception.Message });
-        }
-    }
+        [FromRoute] Guid sessionId, [FromBody] AdvanceSessionRequest request, CancellationToken ct)
+        => Ok(await _sessionService.AdvanceSessionAsync(sessionId, request, ct));
 }

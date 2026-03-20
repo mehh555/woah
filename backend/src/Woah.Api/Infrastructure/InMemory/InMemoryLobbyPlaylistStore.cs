@@ -1,20 +1,20 @@
 ﻿using System.Collections.Concurrent;
+using Woah.Api.Domain;
+using Woah.Api.Services;
 
-namespace Woah.Api.Services;
+namespace Woah.Api.Infrastructure.InMemory;
 
 public class InMemoryLobbyPlaylistStore : ILobbyPlaylistStore
 {
+    public const int MaxTracks = 20;
+
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<long, LobbyDraftTrack>> _tracksByLobbyCode =
         new(StringComparer.OrdinalIgnoreCase);
 
     public IReadOnlyList<LobbyDraftTrack> GetTracks(string lobbyCode)
     {
-        var normalizedLobbyCode = NormalizeLobbyCode(lobbyCode);
-
-        if (!_tracksByLobbyCode.TryGetValue(normalizedLobbyCode, out var tracks))
-        {
+        if (!_tracksByLobbyCode.TryGetValue(lobbyCode.Normalize(), out var tracks))
             return Array.Empty<LobbyDraftTrack>();
-        }
 
         return tracks.Values
             .OrderBy(x => x.AddedAt)
@@ -23,35 +23,26 @@ public class InMemoryLobbyPlaylistStore : ILobbyPlaylistStore
 
     public bool TryAddTrack(string lobbyCode, LobbyDraftTrack track)
     {
-        var normalizedLobbyCode = NormalizeLobbyCode(lobbyCode);
+        var key = lobbyCode.Normalize();
 
         var tracks = _tracksByLobbyCode.GetOrAdd(
-            normalizedLobbyCode,
+            key,
             _ => new ConcurrentDictionary<long, LobbyDraftTrack>());
+
+        if (tracks.Count >= MaxTracks)
+            return false;
 
         return tracks.TryAdd(track.TrackId, track);
     }
 
     public bool RemoveTrack(string lobbyCode, long trackId)
     {
-        var normalizedLobbyCode = NormalizeLobbyCode(lobbyCode);
-
-        if (!_tracksByLobbyCode.TryGetValue(normalizedLobbyCode, out var tracks))
-        {
+        if (!_tracksByLobbyCode.TryGetValue(lobbyCode.Normalize(), out var tracks))
             return false;
-        }
 
         return tracks.TryRemove(trackId, out _);
     }
 
     public void Clear(string lobbyCode)
-    {
-        var normalizedLobbyCode = NormalizeLobbyCode(lobbyCode);
-        _tracksByLobbyCode.TryRemove(normalizedLobbyCode, out _);
-    }
-
-    private static string NormalizeLobbyCode(string lobbyCode)
-    {
-        return lobbyCode.Trim().ToUpperInvariant();
-    }
+        => _tracksByLobbyCode.TryRemove(lobbyCode.Normalize(), out _);
 }
