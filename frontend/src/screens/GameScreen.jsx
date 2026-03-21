@@ -3,16 +3,30 @@ import { getSession, submitAnswer, advanceSession } from "../api/client.js";
 import { useSession } from "../context/SessionContext.jsx";
 import { usePolling } from "../hooks/usePolling.js";
 import { useGameHub } from "../hooks/useGameHub.js";
-import PlayersPanel from "../components/PlayersPanel.jsx";
 import Timer from "../components/Timer.jsx";
+import RoundSummaryModal from "../components/RoundSummaryModal.jsx";
+
+function MaskedWord({ mask }) {
+    if (!mask) return null;
+    const chars = [...mask];
+    return (
+        <div className="word-mask">
+            {chars.map((ch, i) =>
+                ch === " " ? (
+                    <span key={i} className="mask-space" />
+                ) : (
+                    <span key={i} className="mask-char">_</span>
+                )
+            )}
+        </div>
+    );
+}
 
 export default function GameScreen() {
     const { session, clearSession } = useSession();
     const [guess, setGuess] = useState("");
     const [feedback, setFeedback] = useState(null);
     const [myGuessed, setMyGuessed] = useState(false);
-    const [animScores, setAnimScores] = useState({});
-    const prevScoresRef = useRef({});
     const prevRoundRef = useRef(null);
     const inputRef = useRef(null);
     const audioRef = useRef(null);
@@ -22,15 +36,7 @@ export default function GameScreen() {
 
     const { invoke, connected } = useGameHub({
         SessionUpdated: () => refetch(),
-        PlayerAnsweredCorrectly: ({ playerId }) => {
-            setAnimScores(prev => ({ ...prev, [playerId]: true }));
-            setTimeout(() => setAnimScores(prev => {
-                const next = { ...prev };
-                delete next[playerId];
-                return next;
-            }), 600);
-            refetch();
-        }
+        PlayerAnsweredCorrectly: () => refetch(),
     }, [refetch]);
 
     useEffect(() => {
@@ -66,24 +72,10 @@ export default function GameScreen() {
 
     useEffect(() => {
         if (!gameState?.leaderboard) return;
-
-        const iAmParticipant = gameState.leaderboard.some(player => player.playerId === session.playerId);
+        const iAmParticipant = gameState.leaderboard.some(p => p.playerId === session.playerId);
         if (!iAmParticipant) {
             clearSession();
-            return;
         }
-
-        const newScores = {};
-        gameState.leaderboard.forEach(p => {
-            if (prevScoresRef.current[p.playerId] !== undefined && p.score !== prevScoresRef.current[p.playerId]) {
-                newScores[p.playerId] = true;
-            }
-        });
-        if (Object.keys(newScores).length) {
-            setAnimScores(prev => ({ ...prev, ...newScores }));
-            setTimeout(() => setAnimScores({}), 600);
-        }
-        prevScoresRef.current = Object.fromEntries(gameState.leaderboard.map(p => [p.playerId, p.score]));
     }, [gameState, session.playerId, clearSession]);
 
     async function handleGuess() {
@@ -128,36 +120,34 @@ export default function GameScreen() {
     const { currentRound, totalRounds, isFinished, leaderboard, roundDurationSeconds } = gameState;
     const isRoundPlaying = currentRound?.state === "Playing";
     const isRoundRevealed = currentRound?.state === "Revealed";
-
-    const correctIds = new Set(currentRound?.correctPlayerIds || []);
-
-    const songDisplay = isRoundRevealed || isFinished
-        ? currentRound?.answerTitle ?? ""
-        : currentRound?.answerMask ?? "";
-
-    const playersWithGuessed = (leaderboard || []).map(p => ({
-        ...p,
-        guessed: correctIds.has(p.playerId)
-    }));
-
-    const sorted = [...playersWithGuessed].sort((a, b) => b.score - a.score);
+    const sorted = [...(leaderboard || [])].sort((a, b) => b.score - a.score);
 
     return (
         <div className="game-screen">
             <audio ref={audioRef} />
+
+            {/* Round summary modal */}
+            {(isRoundRevealed || isFinished) && (
+                <RoundSummaryModal
+                    round={currentRound}
+                    leaderboard={sorted}
+                    isHost={session.isHost}
+                    onNext={handleAdvance}
+                />
+            )}
+
+            {/* Playing UI */}
             <div className="game-top">
-                <div className="round-badge">Runda {currentRound?.roundNo ?? "?"} / {totalRounds}</div>
+                <div className="round-badge">
+                    Runda {currentRound?.roundNo ?? "?"} / {totalRounds}
+                </div>
 
                 {isRoundPlaying && currentRound?.endsAt && (
                     <Timer endsAt={currentRound.endsAt} total={roundDurationSeconds} />
                 )}
 
-                <div className="song-area">
-                    <div className="music-icon">{isRoundPlaying ? "🎵" : isRoundRevealed ? "🎶" : "🏆"}</div>
-                    <div className="song-hint">
-                        {isRoundPlaying ? "Odgadnij piosenkę:" : isRoundRevealed ? "Odpowiedź:" : ""}
-                    </div>
-                    <div className={`song-chars ${isRoundRevealed ? "revealed" : ""}`}>{songDisplay}</div>
+                <div className="game-mask-area">
+                    <MaskedWord mask={currentRound?.answerMask} />
                 </div>
 
                 {!myGuessed && isRoundPlaying && (
@@ -171,7 +161,9 @@ export default function GameScreen() {
                             onKeyDown={e => e.key === "Enter" && handleGuess()}
                             autoFocus
                         />
-                        <button className="btn btn-primary btn-sm" onClick={handleGuess} disabled={!guess.trim()}>Zgadnij</button>
+                        <button className="btn btn-primary btn-sm" onClick={handleGuess} disabled={!guess.trim()}>
+                            Zgadnij
+                        </button>
                     </div>
                 )}
 
@@ -182,24 +174,34 @@ export default function GameScreen() {
                 {feedback && !myGuessed && (
                     <div className={`feedback ${feedback.type}`}>{feedback.msg}</div>
                 )}
-
-                {isRoundRevealed && session.isHost && (
-                    <button className="btn btn-primary" onClick={handleAdvance}>▶ Następna runda</button>
-                )}
-
-                {isRoundRevealed && !session.isHost && (
-                    <div className="waiting-anim" style={{ color: "var(--muted)", fontSize: ".85rem" }}>
-                        Czekam na hosta…
-                    </div>
-                )}
-
-                {isFinished && (
-                    <div className="feedback correct" style={{ fontSize: "1.2rem", padding: "1rem" }}>
-                        🏆 Gra zakończona!
-                    </div>
-                )}
             </div>
-            <PlayersPanel players={sorted} myId={session.playerId} animScores={animScores} />
+
+            {/* Leaderboard table — always visible at bottom */}
+            <div className="game-leaderboard">
+                <table className="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Gracz</th>
+                            <th>Punkty</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {sorted.map((p, i) => (
+                            <tr key={p.playerId}
+                                className={[
+                                    p.playerId === session.playerId ? "row-me" : "",
+                                    currentRound?.correctPlayerIds?.includes(p.playerId) ? "row-correct" : ""
+                                ].filter(Boolean).join(" ")}
+                            >
+                                <td className="rank">{i + 1}</td>
+                                <td className="nick">{p.nick}</td>
+                                <td className="score">{p.score} pkt</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 }

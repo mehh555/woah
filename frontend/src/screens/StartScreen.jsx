@@ -4,8 +4,9 @@ import { useSession } from "../context/SessionContext.jsx";
 
 export default function StartScreen({ onEnter }) {
     const { setSession } = useSession();
+    const [mode, setMode] = useState(null);
     const [nick, setNick] = useState("");
-    const [maxPlayers, setMaxPlayers] = useState(20);
+    const [maxPlayers, setMaxPlayers] = useState(8);
     const [code, setCode] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
@@ -53,33 +54,57 @@ export default function StartScreen({ onEnter }) {
                 <div className="logo-title">Muzyczne<br />Kalambury</div>
                 <div className="logo-sub">🎵 Zgadnij piosenkę!</div>
             </div>
-            <div className="cards-row anim-fadeUp">
-                <div className="card">
+
+            {!mode && (
+                <div className="mode-picker anim-fadeUp">
+                    <button className="btn btn-primary mode-btn" onClick={() => setMode("create")}>
+                        🎮 Stwórz lobby
+                    </button>
+                    <button className="btn btn-secondary mode-btn" onClick={() => setMode("join")}>
+                        🚪 Dołącz do gry
+                    </button>
+                </div>
+            )}
+
+            {mode === "create" && (
+                <div className="card form-card anim-fadeUp">
                     <div className="card-label">🎮 Stwórz lobby</div>
                     <input className="input" placeholder="Twój nick" value={nick}
-                        onChange={e => setNick(e.target.value)} onKeyDown={e => e.key === "Enter" && handleCreate()} maxLength={20} />
-                    <div style={{ display: "flex", alignItems: "center", gap: ".75rem" }}>
-                        <label style={{ color: "var(--muted)", fontSize: ".9rem", whiteSpace: "nowrap" }}>Max graczy:</label>
-                        <input className="input" type="number" min={2} max={20} value={maxPlayers}
-                            onChange={e => setMaxPlayers(Math.min(20, Math.max(2, Number(e.target.value))))}
-                            style={{ width: "80px", textAlign: "center" }} />
+                        onChange={e => setNick(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && handleCreate()}
+                        maxLength={20} autoFocus />
+                    <div className="form-row">
+                        <label className="form-label">Max graczy:</label>
+                        <input className="input input-small" type="number" min={2} max={20} value={maxPlayers}
+                            onChange={e => setMaxPlayers(Math.min(20, Math.max(2, Number(e.target.value))))} />
                     </div>
                     <button className="btn btn-primary" onClick={handleCreate} disabled={loading}>
                         {loading ? "Tworzę…" : "Utwórz lobby"}
                     </button>
-                </div>
-                <div className="card">
-                    <div className="card-label">🚪 Dołącz do gry</div>
-                    <input className="input" placeholder="Twój nick" value={nick}
-                        onChange={e => setNick(e.target.value)} maxLength={20} />
-                    <input className="input" placeholder="Kod lobby (np. DTQRXR)" value={code}
-                        onChange={e => setCode(e.target.value.toUpperCase())} onKeyDown={e => e.key === "Enter" && handleJoin()} maxLength={8} />
-                    <button className="btn btn-secondary" onClick={handleJoin} disabled={loading}>
-                        {loading ? "Dołączam…" : "Dołącz do lobby"}
+                    <button className="btn-link" onClick={() => { setMode(null); setError(""); }}>
+                        ← Wróć
                     </button>
                 </div>
-            </div>
-            {error && <div className="error-msg">⚠️ {error}</div>}
+            )}
+
+            {mode === "join" && (
+                <div className="card form-card anim-fadeUp">
+                    <div className="card-label">🚪 Dołącz do gry</div>
+                    <input className="input" placeholder="Twój nick" value={nick}
+                        onChange={e => setNick(e.target.value)} maxLength={20} autoFocus />
+                    <input className="input" placeholder="Kod lobby (np. DTQRXR)" value={code}
+                        onChange={e => setCode(e.target.value.toUpperCase())}
+                        onKeyDown={e => e.key === "Enter" && handleJoin()} maxLength={8} />
+                    <button className="btn btn-primary" onClick={handleJoin} disabled={loading}>
+                        {loading ? "Dołączam…" : "Dołącz do lobby"}
+                    </button>
+                    <button className="btn-link" onClick={() => { setMode(null); setError(""); }}>
+                        ← Wróć
+                    </button>
+                </div>
+            )}
+
+            {error && <div className="error-msg anim-fadeUp">⚠️ {error}</div>}
         </div>
     );
 }

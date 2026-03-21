@@ -7,6 +7,7 @@ export default function PlaylistPanel({ lobbyCode, hostPlayerId }) {
     const [tracks, setTracks] = useState([]);
     const [searching, setSearching] = useState(false);
     const [error, setError] = useState("");
+    const [showResults, setShowResults] = useState(false);
 
     const refreshPlaylist = useCallback(async () => {
         try {
@@ -24,6 +25,7 @@ export default function PlaylistPanel({ lobbyCode, hostPlayerId }) {
         try {
             const res = await searchTracks(query.trim());
             setResults(res || []);
+            setShowResults(true);
         } catch (e) {
             setError(e.message);
         } finally {
@@ -52,6 +54,11 @@ export default function PlaylistPanel({ lobbyCode, hostPlayerId }) {
         }
     }
 
+    function handleCloseResults() {
+        setShowResults(false);
+        setResults([]);
+    }
+
     return (
         <div className="playlist-panel">
             <div className="playlist-header">
@@ -74,19 +81,29 @@ export default function PlaylistPanel({ lobbyCode, hostPlayerId }) {
 
             {error && <div className="error-msg" style={{ fontSize: ".8rem" }}>⚠️ {error}</div>}
 
-            {results.length > 0 && (
-                <div className="search-results">
-                    {results.map(t => (
-                        <div key={t.trackId} className="track-row search-result-row">
-                            {t.artworkUrl && <img src={t.artworkUrl} alt="" className="track-art" />}
-                            <div className="track-info">
-                                <div className="track-title">{t.title}</div>
-                                <div className="track-artist">{t.artist}</div>
+            {showResults && results.length > 0 && (
+                <div className="search-results-wrap">
+                    <div className="search-results-header">
+                        <span className="search-results-count">{results.length} wyników</span>
+                        <button className="btn-link btn-link-sm" onClick={handleCloseResults}>Zamknij ×</button>
+                    </div>
+                    <div className="search-results">
+                        {results.map(t => (
+                            <div key={t.trackId} className="track-row search-result-row">
+                                {t.artworkUrl && <img src={t.artworkUrl} alt="" className="track-art" />}
+                                <div className="track-info">
+                                    <div className="track-title">{t.title}</div>
+                                    <div className="track-artist">{t.artist}</div>
+                                </div>
+                                <button className="btn-icon btn-add" onClick={() => handleAdd(t.trackId)} title="Dodaj">+</button>
                             </div>
-                            <button className="btn-icon btn-add" onClick={() => handleAdd(t.trackId)} title="Dodaj">+</button>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
+            )}
+
+            {showResults && results.length === 0 && !searching && (
+                <div className="playlist-empty">Brak wyników wyszukiwania</div>
             )}
 
             {tracks.length > 0 && (

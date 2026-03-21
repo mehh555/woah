@@ -1,3 +1,4 @@
+/* ─── START SCREEN ─────────────────────────────────────────── */
 .start-screen {
     flex: 1;
     display: flex;
@@ -29,15 +30,63 @@
     margin-top: .4rem;
 }
 
-.cards-row {
+.mode-picker {
     display: flex;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-    justify-content: center;
+    flex-direction: column;
+    gap: 1rem;
     width: 100%;
-    max-width: 760px;
+    max-width: 320px;
 }
 
+.mode-btn {
+    font-size: 1.4rem;
+    padding: 1.1rem 1.5rem;
+}
+
+.form-card {
+    width: 100%;
+    max-width: 380px;
+}
+
+.form-row {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+}
+
+.form-label {
+    color: var(--muted);
+    font-size: .9rem;
+    white-space: nowrap;
+}
+
+.input-small {
+    width: 80px;
+    text-align: center;
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: .9rem;
+    cursor: pointer;
+    padding: .4rem;
+    text-align: center;
+    font-family: 'DM Sans', sans-serif;
+    transition: color .15s;
+}
+
+    .btn-link:hover {
+        color: var(--text);
+    }
+
+.btn-link-sm {
+    font-size: .8rem;
+    padding: .2rem;
+}
+
+/* ─── LOBBY SCREEN ─────────────────────────────────────────── */
 .lobby-screen {
     flex: 1;
     display: flex;
@@ -149,6 +198,7 @@
         animation-delay: .4s;
     }
 
+/* ─── PLAYLIST PANEL ───────────────────────────────────────── */
 .playlist-panel {
     background: var(--card);
     border: 1px solid var(--border);
@@ -189,8 +239,28 @@
         font-size: .95rem;
     }
 
+.search-results-wrap {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.search-results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: .5rem .8rem;
+    background: rgba(255,255,255,.02);
+    border-bottom: 1px solid var(--border);
+}
+
+.search-results-count {
+    font-size: .8rem;
+    color: var(--muted);
+}
+
 .search-results {
-    max-height: 220px;
+    max-height: 200px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -304,6 +374,7 @@
     padding: .8rem 0;
 }
 
+/* ─── GAME SCREEN ──────────────────────────────────────────── */
 .game-screen {
     flex: 1;
     display: flex;
@@ -320,6 +391,7 @@
     max-width: 640px;
     margin: 0 auto;
     width: 100%;
+    justify-content: center;
 }
 
 .round-badge {
@@ -334,50 +406,34 @@
     font-weight: 500;
 }
 
-.song-area {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
+.game-mask-area {
     width: 100%;
-    padding: 2rem;
     text-align: center;
-    position: relative;
-    overflow: hidden;
+    padding: 2rem 1rem;
 }
 
-    .song-area::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: radial-gradient(ellipse at 50% 0%, rgba(240,224,64,.07) 0%, transparent 70%);
-        pointer-events: none;
-    }
-
-.music-icon {
-    font-size: 3.5rem;
-    margin-bottom: .6rem;
-    animation: bounce 2s ease-in-out infinite;
+.word-mask {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
 }
 
-.song-hint {
-    color: var(--muted);
-    font-size: .85rem;
-    margin-bottom: .3rem;
-    text-transform: uppercase;
-    letter-spacing: .12em;
-}
-
-.song-chars {
+.mask-char {
+    display: inline-block;
+    width: 28px;
     font-family: 'Bebas Neue', sans-serif;
-    font-size: clamp(1.8rem, 5vw, 2.5rem);
-    letter-spacing: .3em;
-    color: var(--text);
+    font-size: 1.8rem;
+    color: var(--muted);
+    text-align: center;
+    border-bottom: 2px solid var(--border);
+    line-height: 1.4;
 }
 
-    .song-chars.revealed {
-        color: var(--accent3);
-        animation: pop .4s ease;
-    }
+.mask-space {
+    display: inline-block;
+    width: 16px;
+}
 
 .guess-row {
     display: flex;
@@ -411,6 +467,69 @@
         border: 1px solid var(--accent2);
     }
 
+/* ─── GAME LEADERBOARD TABLE ───────────────────────────────── */
+.game-leaderboard {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: .8rem 1.2rem;
+    max-width: 640px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .9rem;
+}
+
+    .leaderboard-table th {
+        font-size: .72rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: .12em;
+        padding: .4rem .6rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .leaderboard-table td {
+        padding: .5rem .6rem;
+        border-bottom: 1px solid rgba(255,255,255,.03);
+    }
+
+    .leaderboard-table .rank {
+        width: 30px;
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 1rem;
+        color: var(--muted);
+    }
+
+    .leaderboard-table .nick {
+        font-weight: 500;
+    }
+
+    .leaderboard-table .score {
+        text-align: right;
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 1rem;
+        color: var(--accent);
+    }
+
+    .leaderboard-table .row-me {
+        background: rgba(240,224,64,.04);
+    }
+
+    .leaderboard-table .row-correct td {
+        color: var(--accent3);
+    }
+
+    .leaderboard-table .row-correct .nick::after {
+        content: " ✓";
+        font-size: .75rem;
+    }
+
+/* ─── TIMER ────────────────────────────────────────────────── */
 .timer-wrap {
     width: 100%;
     background: var(--border);
@@ -439,73 +558,121 @@
     color: var(--muted);
 }
 
-.players-panel {
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    padding: .9rem 1.2rem;
+/* ─── ROUND SUMMARY MODAL ─────────────────────────────────── */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.75);
+    backdrop-filter: blur(6px);
     display: flex;
-    gap: .75rem;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    position: sticky;
-    bottom: 0;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 1.5rem;
 }
 
-    .players-panel::-webkit-scrollbar {
-        height: 3px;
-    }
-
-    .players-panel::-webkit-scrollbar-thumb {
-        background: var(--border);
-        border-radius: 2px;
-    }
-
-.player-chip {
+.modal-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 420px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: .25rem;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: .6rem 1rem;
-    min-width: 80px;
-    flex-shrink: 0;
-    scroll-snap-align: start;
-    transition: border-color .25s, transform .25s;
+    gap: 1.2rem;
 }
 
-    .player-chip.guessed {
-        border-color: var(--accent3);
-        box-shadow: 0 0 12px rgba(0,229,160,.2);
-        transform: translateY(-3px);
-    }
+.modal-header {
+    text-align: center;
+}
 
-    .player-chip.me {
-        border-color: rgba(240,224,64,.4);
-        background: rgba(240,224,64,.04);
-    }
+.modal-song {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 1rem;
+}
 
-.chip-nick {
-    font-size: .8rem;
+.modal-artwork {
+    width: 64px;
+    height: 64px;
+    border-radius: 10px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.modal-song-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.modal-song-title {
+    font-size: 1.05rem;
     font-weight: 600;
-    color: var(--text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 80px;
 }
 
-.chip-score {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 1.15rem;
+.modal-song-artist {
+    font-size: .85rem;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.btn-itunes {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .6rem 1.2rem;
+    border-radius: var(--radius);
+    border: 1.5px solid rgba(240,224,64,.4);
+    background: rgba(240,224,64,.06);
     color: var(--accent);
-    letter-spacing: .05em;
+    font-size: .9rem;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
 }
 
-.chip-guessed {
-    font-size: .65rem;
+    .btn-itunes:hover {
+        background: rgba(240,224,64,.12);
+        border-color: var(--accent);
+    }
+
+.modal-stats {
+    display: flex;
+    gap: 2rem;
+}
+
+.modal-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.modal-stat-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
     color: var(--accent3);
+}
+
+.modal-stat-label {
+    font-size: .75rem;
+    color: var(--muted);
     text-transform: uppercase;
     letter-spacing: .1em;
+}
+
+.modal-leaderboard {
+    width: 100%;
 }

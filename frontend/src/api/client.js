@@ -45,7 +45,7 @@ export function addTrack(lobbyCode, hostPlayerId, trackId) {
 }
 
 export function removeTrack(lobbyCode, hostPlayerId, trackId) {
-    return request("DELETE", `/lobbies/${lobbyCode}/playlist/tracks/${trackId}?hostPlayerId=${hostPlayerId}`);
+    return request("DELETE", `/lobbies/${lobbyCode}/playlist/tracks/${trackId}`, { hostPlayerId });
 }
 
 export function createSession(lobbyCode, hostPlayerId, playlistId, roundDurationSeconds = 10) {
