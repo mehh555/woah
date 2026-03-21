@@ -44,16 +44,24 @@ public class SessionService : ISessionService
     {
         var lobby = await GetLobbyWithPlayersAsync(lobbyCode.NormalizeCode(), ct);
 
-        ValidateSessionStart(lobby, request);
+        ValidateSessionStart(lobby, request, _logger);
 
         var playlist = await _dbContext.Playlists
-            .FirstOrDefaultAsync(x => x.PlaylistId == request.PlaylistId && x.OwnerPlayerId == request.HostPlayerId, ct)
-            ?? throw new NotFoundException("Playlist not found for this host.");
+            .FirstOrDefaultAsync(x => x.PlaylistId == request.PlaylistId && x.OwnerPlayerId == request.HostPlayerId, ct);
+
+        if (playlist is null)
+        {
+            _logger.LogWarning("Start rejected — playlist {PlaylistId} not found for host {HostPlayerId}", request.PlaylistId, request.HostPlayerId);
+            throw new NotFoundException("Playlist not found for this host.");
+        }
 
         var tracks = _playlistStore.GetTracks(lobby.Code).ToList();
 
         if (tracks.Count == 0)
+        {
+            _logger.LogWarning("Start rejected — empty playlist for lobby {LobbyCode}", lobby.Code);
             throw new BadRequestException("Playlist must contain at least one track before starting.");
+        }
 
         var settings = new SessionSettings(
             Math.Clamp(request.RoundDurationSeconds, 5, 15));
@@ -64,7 +72,10 @@ public class SessionService : ISessionService
         try
         {
             if (await _dbContext.GameSessions.AnyAsync(x => x.LobbyId == lobby.LobbyId && x.EndedAt == null, ct))
+            {
+                _logger.LogWarning("Start rejected — active session already exists for lobby {LobbyCode}", lobby.Code);
                 throw new BadRequestException("An active session already exists for this lobby.");
+            }
 
             var session = BuildSession(lobby, playlist, tracks, settings, _normalizer);
             lobby.Status = LobbyStatus.InGame;
@@ -112,35 +123,46 @@ public class SessionService : ISessionService
         await _progressEngine.EnsurePlayingToRevealedAsync(session, ct);
 
         if (session.EndedAt is not null)
+        {
+            _logger.LogWarning("Answer rejected — session {SessionId} already finished (PlayerId={PlayerId})", sessionId, request.PlayerId);
             return Reject("Session has already finished.");
+        }
 
         var lobby = await _dbContext.Lobbies
             .Include(x => x.LobbyPlayers)
             .FirstAsync(x => x.LobbyId == session.LobbyId, ct);
 
         if (!lobby.ActivePlayers().Any(x => x.PlayerId == request.PlayerId))
+        {
+            _logger.LogWarning("Answer rejected — player {PlayerId} not active in lobby for session {SessionId}", request.PlayerId, sessionId);
             return Reject("Player is not active in this lobby.");
+        }
 
         var round = SessionProgressEngine.OrderedRounds(session)
             .FirstOrDefault(x => x.State == RoundState.Playing);
 
         if (round is null)
+        {
+            _logger.LogWarning("Answer rejected — no active round in session {SessionId} (PlayerId={PlayerId})", sessionId, request.PlayerId);
             return Reject("There is no active round to answer.");
+        }
 
         if (round.EndsAt is not null && DateTime.UtcNow >= round.EndsAt.Value)
         {
+            _logger.LogDebug("Answer rejected — round {RoundNo} timer expired in session {SessionId} (PlayerId={PlayerId})", round.RoundNo, sessionId, request.PlayerId);
             await _progressEngine.EnsurePlayingToRevealedAsync(session, ct);
             return Reject("Round has already ended.");
         }
 
         if (round.CorrectAnswers.Any(x => x.PlayerId == request.PlayerId))
+        {
+            _logger.LogDebug("Answer rejected — player {PlayerId} already answered round {RoundNo} in session {SessionId}", request.PlayerId, round.RoundNo, sessionId);
             return AlreadyAnswered();
+        }
 
         if (!string.Equals(_normalizer.Normalize(request.Answer), round.AnswerNorm, StringComparison.Ordinal))
         {
-            _logger.LogDebug(
-                "Incorrect answer from {PlayerId} in session {SessionId} round {RoundNo}",
-                request.PlayerId, sessionId, round.RoundNo);
+            _logger.LogDebug("Incorrect answer from {PlayerId} in session {SessionId} round {RoundNo}", request.PlayerId, sessionId, round.RoundNo);
             return new SubmitAnswerResponse { Accepted = true, IsCorrect = false, AlreadyAnswered = false, PointsAwarded = 0, Message = "Incorrect answer." };
         }
 
@@ -163,6 +185,7 @@ public class SessionService : ISessionService
         }
         catch (DbUpdateException)
         {
+            _logger.LogDebug("Answer rejected (concurrency) — player {PlayerId} already answered round {RoundNo} in session {SessionId}", request.PlayerId, round.RoundNo, sessionId);
             return AlreadyAnswered();
         }
 
@@ -181,7 +204,10 @@ public class SessionService : ISessionService
         var lobby = await _dbContext.Lobbies.FirstAsync(x => x.LobbyId == session.LobbyId, ct);
 
         if (lobby.HostPlayerId != request.HostPlayerId)
+        {
+            _logger.LogWarning("Advance rejected — player {PlayerId} is not host of session {SessionId}", request.HostPlayerId, sessionId);
             throw new ForbiddenException("Only the host can advance the session.");
+        }
 
         await _progressEngine.EnsurePlayingToRevealedAsync(session, ct);
 
@@ -227,16 +253,25 @@ public class SessionService : ISessionService
             .FirstOrDefaultAsync(x => x.Code == normalizedCode, ct)
         ?? throw new NotFoundException("Lobby not found.");
 
-    private static void ValidateSessionStart(LobbyEntity lobby, StartSessionRequest request)
+    private static void ValidateSessionStart(LobbyEntity lobby, StartSessionRequest request, ILogger logger)
     {
         if (lobby.Status != LobbyStatus.Waiting)
+        {
+            logger.LogWarning("Start rejected — lobby {LobbyCode} is not waiting (Status={Status})", lobby.Code, lobby.Status);
             throw new BadRequestException("Only waiting lobbies can start a session.");
+        }
 
         if (lobby.HostPlayerId != request.HostPlayerId)
+        {
+            logger.LogWarning("Start rejected — player {PlayerId} is not host of lobby {LobbyCode}", request.HostPlayerId, lobby.Code);
             throw new ForbiddenException("Only the host can start the session.");
+        }
 
         if (!lobby.ActivePlayers().Any(x => x.PlayerId == request.HostPlayerId))
+        {
+            logger.LogWarning("Start rejected — host {PlayerId} is not active in lobby {LobbyCode}", request.HostPlayerId, lobby.Code);
             throw new BadRequestException("Host is not active in this lobby.");
+        }
     }
 
     private static GameSessionEntity BuildSession(

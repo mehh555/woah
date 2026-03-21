@@ -87,7 +87,10 @@ public class LobbyService : ILobbyService
         var lobby = await GetLobbyWithPlayersAsync(lobbyCode.NormalizeCode(), ct);
 
         if (lobby.Status != LobbyStatus.Waiting)
+        {
+            _logger.LogWarning("Join rejected — lobby {LobbyCode} is not waiting (Status={Status})", lobby.Code, lobby.Status);
             throw new BadRequestException("Lobby is not accepting new players.");
+        }
 
         var active = lobby.ActivePlayers();
 
@@ -166,11 +169,19 @@ public class LobbyService : ILobbyService
         var lobby = await GetLobbyWithPlayersAsync(lobbyCode.NormalizeCode(), ct);
 
         if (lobby.Status != LobbyStatus.Waiting)
+        {
+            _logger.LogWarning("Leave rejected — lobby {LobbyCode} is not waiting (Status={Status})", lobby.Code, lobby.Status);
             throw new BadRequestException("Players can leave only while lobby is waiting.");
+        }
 
         var membership = lobby.LobbyPlayers
-            .FirstOrDefault(x => x.PlayerId == request.PlayerId && x.LeftAt == null)
-            ?? throw new BadRequestException("Active player membership not found in this lobby.");
+            .FirstOrDefault(x => x.PlayerId == request.PlayerId && x.LeftAt == null);
+
+        if (membership is null)
+        {
+            _logger.LogWarning("Leave rejected — player {PlayerId} not found as active in lobby {LobbyCode}", request.PlayerId, lobby.Code);
+            throw new BadRequestException("Active player membership not found in this lobby.");
+        }
 
         var wasHost = lobby.HostPlayerId == request.PlayerId;
 

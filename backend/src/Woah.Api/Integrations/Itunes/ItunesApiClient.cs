@@ -6,10 +6,12 @@ namespace Woah.Api.Integrations.Itunes;
 public class ItunesApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly ILogger<ItunesApiClient> _logger;
 
-    public ItunesApiClient(HttpClient httpClient)
+    public ItunesApiClient(HttpClient httpClient, ILogger<ItunesApiClient> logger)
     {
         _httpClient = httpClient;
+        _logger = logger;
     }
 
     public async Task<List<ItunesTrackDto>> SearchSongsAsync(string term, CancellationToken cancellationToken = default)
@@ -28,19 +30,37 @@ public class ItunesApiClient
             ["limit"] = "12"
         });
 
-        var response = await _httpClient.GetAsync(url, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        _logger.LogDebug("iTunes search request: term={Term}", term);
 
-        var payload = await response.Content.ReadFromJsonAsync<ItunesSearchResponse>(cancellationToken: cancellationToken);
+        try
+        {
+            var response = await _httpClient.GetAsync(url, cancellationToken);
+            response.EnsureSuccessStatusCode();
 
-        return payload?.Results?
-            .Where(x =>
-                x.TrackId > 0 &&
-                !string.IsNullOrWhiteSpace(x.TrackName) &&
-                !string.IsNullOrWhiteSpace(x.ArtistName) &&
-                !string.IsNullOrWhiteSpace(x.PreviewUrl))
-            .ToList()
-            ?? new List<ItunesTrackDto>();
+            var payload = await response.Content.ReadFromJsonAsync<ItunesSearchResponse>(cancellationToken: cancellationToken);
+
+            var results = payload?.Results?
+                .Where(x =>
+                    x.TrackId > 0 &&
+                    !string.IsNullOrWhiteSpace(x.TrackName) &&
+                    !string.IsNullOrWhiteSpace(x.ArtistName) &&
+                    !string.IsNullOrWhiteSpace(x.PreviewUrl))
+                .ToList()
+                ?? new List<ItunesTrackDto>();
+
+            _logger.LogDebug("iTunes search returned {Count} results for term={Term}", results.Count, term);
+            return results;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "iTunes search failed for term={Term}", term);
+            throw;
+        }
+        catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(ex, "iTunes search timed out for term={Term}", term);
+            throw;
+        }
     }
 
     public async Task<ItunesTrackDto?> LookupSongAsync(long trackId, CancellationToken cancellationToken = default)
@@ -52,16 +72,36 @@ public class ItunesApiClient
             ["entity"] = "song"
         });
 
-        var response = await _httpClient.GetAsync(url, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        _logger.LogDebug("iTunes lookup request: trackId={TrackId}", trackId);
 
-        var payload = await response.Content.ReadFromJsonAsync<ItunesSearchResponse>(cancellationToken: cancellationToken);
+        try
+        {
+            var response = await _httpClient.GetAsync(url, cancellationToken);
+            response.EnsureSuccessStatusCode();
 
-        return payload?.Results?
-            .FirstOrDefault(x =>
-                x.TrackId > 0 &&
-                !string.IsNullOrWhiteSpace(x.TrackName) &&
-                !string.IsNullOrWhiteSpace(x.ArtistName) &&
-                !string.IsNullOrWhiteSpace(x.PreviewUrl));
+            var payload = await response.Content.ReadFromJsonAsync<ItunesSearchResponse>(cancellationToken: cancellationToken);
+
+            var result = payload?.Results?
+                .FirstOrDefault(x =>
+                    x.TrackId > 0 &&
+                    !string.IsNullOrWhiteSpace(x.TrackName) &&
+                    !string.IsNullOrWhiteSpace(x.ArtistName) &&
+                    !string.IsNullOrWhiteSpace(x.PreviewUrl));
+
+            if (result is null)
+                _logger.LogWarning("iTunes lookup returned no valid result for trackId={TrackId}", trackId);
+
+            return result;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "iTunes lookup failed for trackId={TrackId}", trackId);
+            throw;
+        }
+        catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(ex, "iTunes lookup timed out for trackId={TrackId}", trackId);
+            throw;
+        }
     }
 }

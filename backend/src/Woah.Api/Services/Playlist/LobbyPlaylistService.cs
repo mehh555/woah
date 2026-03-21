@@ -55,15 +55,23 @@ public class LobbyPlaylistService : ILobbyPlaylistService
 
         if (_store.GetTracks(lobby.Code).Count >= MaxPlaylistTracks)
         {
-            _logger.LogWarning("Playlist limit reached for lobby {LobbyCode} ({Max} tracks)", lobby.Code, MaxPlaylistTracks);
+            _logger.LogWarning("Add track rejected — playlist limit reached for lobby {LobbyCode} ({Max} tracks)", lobby.Code, MaxPlaylistTracks);
             throw new BadRequestException($"Playlist cannot exceed {MaxPlaylistTracks} tracks.");
         }
 
-        var track = await _itunesClient.LookupSongAsync(request.TrackId, ct)
-            ?? throw new BadRequestException("Track not found in iTunes or preview is unavailable.");
+        var track = await _itunesClient.LookupSongAsync(request.TrackId, ct);
+
+        if (track is null)
+        {
+            _logger.LogWarning("Add track rejected — trackId={TrackId} not found in iTunes for lobby {LobbyCode}", request.TrackId, lobby.Code);
+            throw new BadRequestException("Track not found in iTunes or preview is unavailable.");
+        }
 
         if (!_store.TryAddTrack(lobby.Code, LobbyTrackMapper.ToDraft(track)))
+        {
+            _logger.LogWarning("Add track rejected — trackId={TrackId} already exists in lobby {LobbyCode} playlist", request.TrackId, lobby.Code);
             throw new BadRequestException("Track already exists in the lobby playlist.");
+        }
 
         _logger.LogInformation("Track {TrackId} added to lobby {LobbyCode} playlist", request.TrackId, lobby.Code);
 
@@ -77,7 +85,10 @@ public class LobbyPlaylistService : ILobbyPlaylistService
         var lobby = await GetLobbyForHostAsync(lobbyCode, request.HostPlayerId, ct);
 
         if (!_store.RemoveTrack(lobby.Code, trackId))
+        {
+            _logger.LogWarning("Remove track rejected — trackId={TrackId} not found in lobby {LobbyCode} playlist", trackId, lobby.Code);
             throw new BadRequestException("Track not found in the lobby playlist.");
+        }
 
         _logger.LogInformation("Track {TrackId} removed from lobby {LobbyCode} playlist", trackId, lobby.Code);
 
@@ -104,13 +115,22 @@ public class LobbyPlaylistService : ILobbyPlaylistService
             ?? throw new NotFoundException("Lobby not found.");
 
         if (lobby.Status != LobbyStatus.Waiting)
+        {
+            _logger.LogWarning("Playlist action rejected — lobby {LobbyCode} is not waiting (Status={Status})", lobby.Code, lobby.Status);
             throw new BadRequestException("Tracks can be modified only while lobby is waiting.");
+        }
 
         if (lobby.HostPlayerId != hostPlayerId)
+        {
+            _logger.LogWarning("Playlist action rejected — player {PlayerId} is not host of lobby {LobbyCode}", hostPlayerId, lobby.Code);
             throw new ForbiddenException("Only the host can modify the lobby playlist.");
+        }
 
         if (!lobby.LobbyPlayers.Any(x => x.PlayerId == hostPlayerId && x.LeftAt == null))
+        {
+            _logger.LogWarning("Playlist action rejected — host {PlayerId} is not active in lobby {LobbyCode}", hostPlayerId, lobby.Code);
             throw new BadRequestException("Host is not active in this lobby.");
+        }
 
         return lobby;
     }
