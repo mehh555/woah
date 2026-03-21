@@ -7,7 +7,7 @@ import PlayersPanel from "../components/PlayersPanel.jsx";
 import Timer from "../components/Timer.jsx";
 
 export default function GameScreen() {
-    const { session } = useSession();
+    const { session, clearSession } = useSession();
     const [guess, setGuess] = useState("");
     const [feedback, setFeedback] = useState(null);
     const [myGuessed, setMyGuessed] = useState(false);
@@ -66,6 +66,13 @@ export default function GameScreen() {
 
     useEffect(() => {
         if (!gameState?.leaderboard) return;
+
+        const iAmParticipant = gameState.leaderboard.some(player => player.playerId === session.playerId);
+        if (!iAmParticipant) {
+            clearSession();
+            return;
+        }
+
         const newScores = {};
         gameState.leaderboard.forEach(p => {
             if (prevScoresRef.current[p.playerId] !== undefined && p.score !== prevScoresRef.current[p.playerId]) {
@@ -77,7 +84,7 @@ export default function GameScreen() {
             setTimeout(() => setAnimScores({}), 600);
         }
         prevScoresRef.current = Object.fromEntries(gameState.leaderboard.map(p => [p.playerId, p.score]));
-    }, [gameState]);
+    }, [gameState, session.playerId, clearSession]);
 
     async function handleGuess() {
         if (!guess.trim() || myGuessed) return;
@@ -101,7 +108,13 @@ export default function GameScreen() {
     async function handleAdvance() {
         try {
             await advanceSession(session.sessionId, session.playerId);
-        } catch (e) { alert("Błąd: " + e.message); }
+        } catch (e) {
+            alert("Błąd: " + e.message);
+        }
+    }
+
+    if (!session?.sessionId) {
+        return <div className="error-msg" style={{ margin: "2rem" }}>⚠️ Brak aktywnej sesji.</div>;
     }
 
     if (!gameState && !error) return (
@@ -109,6 +122,7 @@ export default function GameScreen() {
             <div style={{ color: "var(--muted)" }}>Ładuję grę…</div>
         </div>
     );
+
     if (error) return <div className="error-msg" style={{ margin: "2rem" }}>⚠️ {error}</div>;
 
     const { currentRound, totalRounds, isFinished, leaderboard, roundDurationSeconds } = gameState;

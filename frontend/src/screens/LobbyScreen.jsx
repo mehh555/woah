@@ -6,8 +6,8 @@ import { useGameHub } from "../hooks/useGameHub.js";
 import DotPulse from "../components/DotPulse.jsx";
 import PlaylistPanel from "../components/PlaylistPanel.jsx";
 
-export default function LobbyScreen({ onStart }) {
-    const { session, setSession } = useSession();
+export default function LobbyScreen({ onStart, onExit }) {
+    const { session, setSession, clearSession } = useSession();
     const [roundDuration, setRoundDuration] = useState(10);
     const fetchLobby = useCallback(() => getLobby(session.lobbyCode), [session.lobbyCode]);
     const { data: lobby, error, refetch } = usePolling(fetchLobby, 10000);
@@ -30,23 +30,25 @@ export default function LobbyScreen({ onStart }) {
 
     useEffect(() => {
         if (!lobby) return;
-        if (lobby.status === "InGame" && lobby.currentSessionId && !amIHost) {
+
+        const activePlayerIds = new Set((lobby.players || []).map(player => player.playerId));
+        if (!activePlayerIds.has(session.playerId)) {
+            clearSession();
+            onExit();
+            return;
+        }
+
+        setSession(prev => ({
+            ...prev,
+            isHost: lobby.hostPlayerId === prev.playerId,
+            sessionId: lobby.currentSessionId ?? prev.sessionId ?? null,
+        }));
+
+        if (lobby.status === "InGame" && lobby.currentSessionId) {
             setSession(prev => ({ ...prev, sessionId: lobby.currentSessionId }));
             onStart();
         }
-    }, [lobby, amIHost, setSession, onStart]);
-
-    useEffect(() => {
-        function handleUnload() {
-            const blob = new Blob(
-                [JSON.stringify({ playerId: session.playerId })],
-                { type: "application/json" }
-            );
-            navigator.sendBeacon(`/api/lobbies/${session.lobbyCode}/leave`, blob);
-        }
-        window.addEventListener("beforeunload", handleUnload);
-        return () => window.removeEventListener("beforeunload", handleUnload);
-    }, [session.lobbyCode, session.playerId]);
+    }, [lobby, session.playerId, setSession, clearSession, onStart, onExit]);
 
     async function handleStart() {
         try {
@@ -58,7 +60,9 @@ export default function LobbyScreen({ onStart }) {
             );
             setSession(prev => ({ ...prev, sessionId: res.sessionId }));
             onStart();
-        } catch (e) { alert("Błąd startu: " + e.message); }
+        } catch (e) {
+            alert("Błąd startu: " + e.message);
+        }
     }
 
     async function handleLeave() {
@@ -67,7 +71,8 @@ export default function LobbyScreen({ onStart }) {
         } catch (e) {
             console.error(e);
         }
-        window.location.reload();
+        clearSession();
+        onExit();
     }
 
     if (!lobby && !error) return (
@@ -79,7 +84,10 @@ export default function LobbyScreen({ onStart }) {
     if (error) return (
         <div className="lobby-screen">
             <div className="error-msg">⚠️ {error}</div>
-            <button className="btn btn-secondary" style={{ maxWidth: 200, marginTop: "1rem" }} onClick={() => window.location.reload()}>
+            <button className="btn btn-secondary" style={{ maxWidth: 200, marginTop: "1rem" }} onClick={() => {
+                clearSession();
+                onExit();
+            }}>
                 ← Wróć
             </button>
         </div>
@@ -89,7 +97,10 @@ export default function LobbyScreen({ onStart }) {
         return (
             <div className="lobby-screen">
                 <div className="error-msg">⚠️ Host zamknął lobby.</div>
-                <button className="btn btn-secondary" style={{ maxWidth: 200, marginTop: "1rem" }} onClick={() => window.location.reload()}>
+                <button className="btn btn-secondary" style={{ maxWidth: 200, marginTop: "1rem" }} onClick={() => {
+                    clearSession();
+                    onExit();
+                }}>
                     ← Wróć do menu
                 </button>
             </div>
