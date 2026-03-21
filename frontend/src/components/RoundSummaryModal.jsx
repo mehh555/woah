@@ -19,12 +19,7 @@ export default function RoundSummaryModal({ round, leaderboard, isHost, onNext }
                 </div>
 
                 {round.itunesUrl && (
-                    
-                        href={round.itunesUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-itunes"
-                    >
+                    <a href={round.itunesUrl} target="_blank" rel="noopener noreferrer" className="btn btn-itunes">
                         🎵 Sprawdź na iTunes
                     </a>
                 )}
