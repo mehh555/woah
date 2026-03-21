@@ -12,6 +12,4 @@ public class PlaylistEntity
     public string Name { get; set; } = default!;
     public string Market { get; set; } = "PL";
     public DateTime CreatedAt { get; set; }
-
-    public ICollection<PlaylistTrackEntity>? Tracks { get; set; }
 }

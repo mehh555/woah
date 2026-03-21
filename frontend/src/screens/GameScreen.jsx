@@ -22,13 +22,14 @@ export default function GameScreen() {
 
     const { invoke, connected } = useGameHub({
         SessionUpdated: () => refetch(),
-        PlayerAnsweredCorrectly: ({ playerId, points }) => {
+        PlayerAnsweredCorrectly: ({ playerId }) => {
             setAnimScores(prev => ({ ...prev, [playerId]: true }));
             setTimeout(() => setAnimScores(prev => {
                 const next = { ...prev };
                 delete next[playerId];
                 return next;
             }), 600);
+            refetch();
         }
     }, [refetch]);
 
@@ -114,19 +115,16 @@ export default function GameScreen() {
     const isRoundPlaying = currentRound?.state === "Playing";
     const isRoundRevealed = currentRound?.state === "Revealed";
 
+    const correctIds = new Set(currentRound?.correctPlayerIds || []);
+
     const songDisplay = isRoundRevealed || isFinished
         ? currentRound?.answerTitle ?? ""
-        : currentRound
-            ? Array.from({ length: currentRound.answerCharCount }, (_, i) => {
-                const title = currentRound.answerTitle || "";
-                return title[i] === " " ? " " : "•";
-            }).join("")
-            : "";
+        : currentRound?.answerMask ?? "";
 
-    const playersWithGuessed = (leaderboard || []).map(p => {
-        const guessedThisRound = currentRound?.correctAnswerCount > 0 && p.correctAnswers > 0;
-        return { ...p, guessed: guessedThisRound };
-    });
+    const playersWithGuessed = (leaderboard || []).map(p => ({
+        ...p,
+        guessed: correctIds.has(p.playerId)
+    }));
 
     const sorted = [...playersWithGuessed].sort((a, b) => b.score - a.score);
 

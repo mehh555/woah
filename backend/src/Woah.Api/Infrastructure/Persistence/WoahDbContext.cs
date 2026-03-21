@@ -11,7 +11,6 @@ public class WoahDbContext : DbContext
     public DbSet<LobbyEntity> Lobbies => Set<LobbyEntity>();
     public DbSet<LobbyPlayerEntity> LobbyPlayers => Set<LobbyPlayerEntity>();
     public DbSet<PlaylistEntity> Playlists => Set<PlaylistEntity>();
-    public DbSet<PlaylistTrackEntity> PlaylistTracks => Set<PlaylistTrackEntity>();
     public DbSet<GameSessionEntity> GameSessions => Set<GameSessionEntity>();
     public DbSet<RoundEntity> Rounds => Set<RoundEntity>();
     public DbSet<RoundCorrectAnswerEntity> RoundCorrectAnswers => Set<RoundCorrectAnswerEntity>();
@@ -41,7 +40,8 @@ public class WoahDbContext : DbContext
 
         modelBuilder.Entity<LobbyPlayerEntity>()
             .HasIndex(lp => new { lp.LobbyId, lp.Nick })
-            .IsUnique();
+            .IsUnique()
+            .HasFilter("\"LeftAt\" IS NULL");
 
         modelBuilder.Entity<LobbyPlayerEntity>()
             .HasOne(lp => lp.Lobby)
@@ -57,9 +57,6 @@ public class WoahDbContext : DbContext
 
         modelBuilder.Entity<PlaylistEntity>()
             .HasKey(pl => pl.PlaylistId);
-
-        modelBuilder.Entity<PlaylistTrackEntity>()
-            .HasKey(pt => new { pt.PlaylistId, pt.ItemNumber });
 
         modelBuilder.Entity<GameSessionEntity>()
             .HasKey(gs => gs.SessionId);

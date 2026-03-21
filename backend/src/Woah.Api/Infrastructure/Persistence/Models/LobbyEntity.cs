@@ -6,8 +6,8 @@ namespace Woah.Api.Infrastructure.Persistence.Models;
 public class LobbyEntity
 {
     public Guid LobbyId { get; set; }
-        public string Code { get; set; } = default!;
-        public string Status { get; set; } = default!; 
+    public string Code { get; set; } = default!;
+    public string Status { get; set; } = default!;
     public DateTime CreatedAt { get; set; }
     public Guid HostPlayerId { get; set; }
 

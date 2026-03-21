@@ -250,7 +250,7 @@ public class SessionService : ISessionService
                 PreviewUrl = tracks[i].PreviewUrl,
                 AnswerTitle = tracks[i].Title,
                 AnswerNorm = normalizer.Normalize(tracks[i].Title),
-                StartedAt = isFirst ? now : default,
+                StartedAt = now,
                 EndsAt = isFirst ? now.AddSeconds(settings.RoundDurationSeconds) : null,
                 RevealedAt = null,
                 State = isFirst ? RoundState.Playing : RoundState.Pending,

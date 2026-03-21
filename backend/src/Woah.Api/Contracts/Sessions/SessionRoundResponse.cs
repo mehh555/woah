@@ -10,6 +10,7 @@ public class SessionRoundResponse
     public DateTime? EndsAt { get; set; }
     public DateTime? RevealedAt { get; set; }
     public string? AnswerTitle { get; set; }
-    public int AnswerCharCount { get; set; }
+    public string AnswerMask { get; set; } = default!;
     public int CorrectAnswerCount { get; set; }
+    public List<Guid> CorrectPlayerIds { get; set; } = new();
 }

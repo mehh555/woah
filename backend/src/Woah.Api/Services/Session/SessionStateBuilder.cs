@@ -40,8 +40,13 @@ public class SessionStateBuilder : ISessionStateBuilder
         };
     }
 
-    private static SessionRoundResponse MapRound(RoundEntity round) =>
-        new()
+    private static SessionRoundResponse MapRound(RoundEntity round)
+    {
+        var correctIds = (round.CorrectAnswers ?? new List<RoundCorrectAnswerEntity>())
+            .Select(x => x.PlayerId)
+            .ToList();
+
+        return new SessionRoundResponse
         {
             RoundId = round.RoundId,
             RoundNo = round.RoundNo,
@@ -51,9 +56,14 @@ public class SessionStateBuilder : ISessionStateBuilder
             EndsAt = round.EndsAt,
             RevealedAt = round.RevealedAt,
             AnswerTitle = round.State is RoundState.Revealed or RoundState.Finished ? round.AnswerTitle : null,
-            AnswerCharCount = round.AnswerTitle.Length,
-            CorrectAnswerCount = round.CorrectAnswers?.Count ?? 0
+            AnswerMask = BuildMask(round.AnswerTitle),
+            CorrectAnswerCount = correctIds.Count,
+            CorrectPlayerIds = correctIds
         };
+    }
+
+    private static string BuildMask(string title) =>
+        new(title.Select(c => c == ' ' ? ' ' : '•').ToArray());
 
     private static List<SessionLeaderboardEntryResponse> BuildLeaderboard(
         List<LobbyPlayerEntity> players,
