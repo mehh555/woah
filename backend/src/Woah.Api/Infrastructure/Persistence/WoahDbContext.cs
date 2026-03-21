@@ -122,6 +122,13 @@ public class WoahDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(300);
 
+            e.Property(r => r.AnswerArtist)
+                .IsRequired()
+                .HasMaxLength(300);
+
+            e.Property(r => r.ArtworkUrl)
+                .HasMaxLength(500);
+
             e.ToTable(t => t.HasCheckConstraint("CK_Round_RoundNo", "\"RoundNo\" >= 1"));
         });
 

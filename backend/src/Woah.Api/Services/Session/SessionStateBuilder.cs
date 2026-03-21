@@ -46,6 +46,8 @@ public class SessionStateBuilder : ISessionStateBuilder
             .Select(x => x.PlayerId)
             .ToList();
 
+        var isRevealed = round.State is RoundState.Revealed or RoundState.Finished;
+
         return new SessionRoundResponse
         {
             RoundId = round.RoundId,
@@ -55,7 +57,12 @@ public class SessionStateBuilder : ISessionStateBuilder
             StartedAt = round.StartedAt,
             EndsAt = round.EndsAt,
             RevealedAt = round.RevealedAt,
-            AnswerTitle = round.State is RoundState.Revealed or RoundState.Finished ? round.AnswerTitle : null,
+            AnswerTitle = isRevealed ? round.AnswerTitle : null,
+            AnswerArtist = isRevealed ? round.AnswerArtist : null,
+            ArtworkUrl = isRevealed ? round.ArtworkUrl : null,
+            ItunesUrl = isRevealed && round.ItunesTrackId.HasValue
+                ? $"https://music.apple.com/pl/song/{round.ItunesTrackId.Value}"
+                : null,
             AnswerMask = BuildMask(round.AnswerTitle),
             CorrectAnswerCount = correctIds.Count,
             CorrectPlayerIds = correctIds
