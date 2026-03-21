@@ -45,15 +45,14 @@ export function addTrack(lobbyCode, hostPlayerId, trackId) {
 }
 
 export function removeTrack(lobbyCode, hostPlayerId, trackId) {
-    return request("DELETE", `/lobbies/${lobbyCode}/playlist/tracks/${trackId}`, { hostPlayerId });
+    return request("DELETE", `/lobbies/${lobbyCode}/playlist/tracks/${trackId}?hostPlayerId=${hostPlayerId}`);
 }
 
-export function createSession(lobbyCode, hostPlayerId, playlistId, roundDurationSeconds = 30, revealDurationSeconds = 5) {
+export function createSession(lobbyCode, hostPlayerId, playlistId, roundDurationSeconds = 10) {
     return request("POST", `/lobbies/${lobbyCode}/session`, {
         hostPlayerId,
         playlistId,
         roundDurationSeconds,
-        revealDurationSeconds,
     });
 }
 

@@ -51,7 +51,7 @@ export default function StartScreen({ onEnter }) {
         <div className="start-screen">
             <div className="logo anim-fadeDown">
                 <div className="logo-title">Muzyczne<br />Kalambury</div>
-                <div className="logo-sub">🎵 Multiplayer Kalambury</div>
+                <div className="logo-sub">🎵 Zgadnij piosenkę!</div>
             </div>
             <div className="cards-row anim-fadeUp">
                 <div className="card">

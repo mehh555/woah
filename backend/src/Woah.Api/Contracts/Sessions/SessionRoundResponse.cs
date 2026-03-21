@@ -10,5 +10,6 @@ public class SessionRoundResponse
     public DateTime? EndsAt { get; set; }
     public DateTime? RevealedAt { get; set; }
     public string? AnswerTitle { get; set; }
+    public int AnswerCharCount { get; set; }
     public int CorrectAnswerCount { get; set; }
 }

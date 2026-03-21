@@ -12,10 +12,37 @@ export default function GameScreen() {
     const [myGuessed, setMyGuessed] = useState(false);
     const [animScores, setAnimScores] = useState({});
     const prevScoresRef = useRef({});
+    const prevRoundRef = useRef(null);
     const inputRef = useRef(null);
+    const audioRef = useRef(null);
 
     const fetchSession = useCallback(() => getSession(session.sessionId), [session.sessionId]);
-    const { data: gameState, error } = usePolling(fetchSession, gameState?.isFinished ? null : 1500);
+    const { data: gameState, error } = usePolling(fetchSession, 1500);
+
+    useEffect(() => {
+        if (!gameState?.currentRound) return;
+        const roundId = gameState.currentRound.roundId;
+        if (prevRoundRef.current && prevRoundRef.current !== roundId) {
+            setMyGuessed(false);
+            setFeedback(null);
+            setGuess("");
+        }
+        prevRoundRef.current = roundId;
+    }, [gameState?.currentRound?.roundId]);
+
+    useEffect(() => {
+        if (!gameState?.currentRound?.previewUrl || !audioRef.current) return;
+        const audio = audioRef.current;
+        const isPlaying = gameState.currentRound.state === "Playing";
+
+        if (isPlaying) {
+            audio.src = gameState.currentRound.previewUrl;
+            audio.currentTime = 0;
+            audio.play().catch(() => { });
+        } else {
+            audio.pause();
+        }
+    }, [gameState?.currentRound?.previewUrl, gameState?.currentRound?.state]);
 
     useEffect(() => {
         if (!gameState?.leaderboard) return;
@@ -54,8 +81,6 @@ export default function GameScreen() {
     async function handleAdvance() {
         try {
             await advanceSession(session.sessionId, session.playerId);
-            setMyGuessed(false);
-            setFeedback(null);
         } catch (e) { alert("Błąd: " + e.message); }
     }
 
@@ -66,29 +91,45 @@ export default function GameScreen() {
     );
     if (error) return <div className="error-msg" style={{ margin: "2rem" }}>⚠️ {error}</div>;
 
-    const { currentRound, totalRounds, isFinished, leaderboard } = gameState;
-    const sorted = [...(leaderboard || [])].sort((a, b) => b.score - a.score);
-
-    const songDisplay = session.isHost
-        ? `${currentRound?.answerTitle ?? "?"}`
-        : (currentRound?.answerTitle || "").split("").map(c => c === " " ? " " : "•").join("");
-
+    const { currentRound, totalRounds, isFinished, leaderboard, roundDurationSeconds } = gameState;
     const isRoundPlaying = currentRound?.state === "Playing";
     const isRoundRevealed = currentRound?.state === "Revealed";
 
+    const songDisplay = isRoundRevealed || isFinished
+        ? currentRound?.answerTitle ?? ""
+        : currentRound
+            ? Array.from({ length: currentRound.answerCharCount }, (_, i) => {
+                const title = currentRound.answerTitle || "";
+                return title[i] === " " ? " " : "•";
+            }).join("")
+            : "";
+
+    const playersWithGuessed = (leaderboard || []).map(p => {
+        const guessedThisRound = currentRound?.correctAnswerCount > 0 && p.correctAnswers > 0;
+        return { ...p, guessed: guessedThisRound };
+    });
+
+    const sorted = [...playersWithGuessed].sort((a, b) => b.score - a.score);
+
     return (
         <div className="game-screen">
+            <audio ref={audioRef} />
             <div className="game-top">
                 <div className="round-badge">Runda {currentRound?.roundNo ?? "?"} / {totalRounds}</div>
+
                 {isRoundPlaying && currentRound?.endsAt && (
-                    <Timer endsAt={currentRound.endsAt} />
+                    <Timer endsAt={currentRound.endsAt} total={roundDurationSeconds} />
                 )}
+
                 <div className="song-area">
-                    <div className="music-icon">🎵</div>
-                    <div className="song-hint">{session.isHost ? "Twoja piosenka:" : "Odgadnij piosenkę:"}</div>
-                    <div className="song-chars">{songDisplay}</div>
+                    <div className="music-icon">{isRoundPlaying ? "🎵" : isRoundRevealed ? "🎶" : "🏆"}</div>
+                    <div className="song-hint">
+                        {isRoundPlaying ? "Odgadnij piosenkę:" : isRoundRevealed ? "Odpowiedź:" : ""}
+                    </div>
+                    <div className={`song-chars ${isRoundRevealed ? "revealed" : ""}`}>{songDisplay}</div>
                 </div>
-                {!session.isHost && !myGuessed && isRoundPlaying && (
+
+                {!myGuessed && isRoundPlaying && (
                     <div className="guess-row">
                         <input
                             ref={inputRef}
@@ -102,13 +143,29 @@ export default function GameScreen() {
                         <button className="btn btn-primary btn-sm" onClick={handleGuess} disabled={!guess.trim()}>Zgadnij</button>
                     </div>
                 )}
-                {myGuessed && <div className="feedback correct">🎉 Już zgadłeś! Czekaj na pozostałych…</div>}
-                {session.isHost && isRoundRevealed && (
+
+                {myGuessed && isRoundPlaying && (
+                    <div className="feedback correct">🎉 Już zgadłeś! Czekaj na koniec rundy…</div>
+                )}
+
+                {feedback && !myGuessed && (
+                    <div className={`feedback ${feedback.type}`}>{feedback.msg}</div>
+                )}
+
+                {isRoundRevealed && session.isHost && (
                     <button className="btn btn-primary" onClick={handleAdvance}>▶ Następna runda</button>
                 )}
-                {feedback && !myGuessed && <div className={`feedback ${feedback.type}`}>{feedback.msg}</div>}
+
+                {isRoundRevealed && !session.isHost && (
+                    <div className="waiting-anim" style={{ color: "var(--muted)", fontSize: ".85rem" }}>
+                        Czekam na hosta…
+                    </div>
+                )}
+
                 {isFinished && (
-                    <div className="feedback correct" style={{ fontSize: "1.2rem", padding: "1rem" }}>🏆 Gra zakończona!</div>
+                    <div className="feedback correct" style={{ fontSize: "1.2rem", padding: "1rem" }}>
+                        🏆 Gra zakończona!
+                    </div>
                 )}
             </div>
             <PlayersPanel players={sorted} myId={session.playerId} animScores={animScores} />

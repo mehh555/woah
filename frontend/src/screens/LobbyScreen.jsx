@@ -1,15 +1,25 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getLobby, createSession, leaveLobby } from "../api/client.js";
 import { useSession } from "../context/SessionContext.jsx";
 import { usePolling } from "../hooks/usePolling.js";
 import DotPulse from "../components/DotPulse.jsx";
+import PlaylistPanel from "../components/PlaylistPanel.jsx";
 
 export default function LobbyScreen({ onStart }) {
     const { session, setSession } = useSession();
+    const [roundDuration, setRoundDuration] = useState(10);
     const fetchLobby = useCallback(() => getLobby(session.lobbyCode), [session.lobbyCode]);
     const { data: lobby, error } = usePolling(fetchLobby);
 
     const amIHost = lobby ? lobby.hostPlayerId === session.playerId : session.isHost;
+
+    useEffect(() => {
+        if (!lobby) return;
+        if (lobby.status === "InGame" && lobby.currentSessionId && !amIHost) {
+            setSession(prev => ({ ...prev, sessionId: lobby.currentSessionId }));
+            onStart();
+        }
+    }, [lobby, amIHost, setSession, onStart]);
 
     useEffect(() => {
         function handleUnload() {
@@ -28,10 +38,11 @@ export default function LobbyScreen({ onStart }) {
             const res = await createSession(
                 session.lobbyCode,
                 session.playerId,
-                session.playlistId
+                session.playlistId,
+                roundDuration
             );
             setSession(prev => ({ ...prev, sessionId: res.sessionId }));
-            onStart(res.sessionId);
+            onStart();
         } catch (e) { alert("Błąd startu: " + e.message); }
     }
 
@@ -75,8 +86,9 @@ export default function LobbyScreen({ onStart }) {
             <div className="lobby-header">
                 <div className="lobby-code-label">Kod lobby</div>
                 <div className="lobby-code">{lobby.code}</div>
-                <div className="lobby-count">{lobby.playerCount} / {lobby.maxPlayers} graczy • Zaproś znajomych!</div>
+                <div className="lobby-count">{lobby.playerCount} / {lobby.maxPlayers} graczy</div>
             </div>
+
             <div className="players-list">
                 {lobby.players.map((p, i) => (
                     <div className="player-row" key={p.playerId} style={{ animationDelay: `${i * 0.05}s` }}>
@@ -91,11 +103,32 @@ export default function LobbyScreen({ onStart }) {
                     </div>
                 ))}
             </div>
+
+            {amIHost && (
+                <PlaylistPanel lobbyCode={session.lobbyCode} hostPlayerId={session.playerId} />
+            )}
+
             <div style={{ display: "flex", gap: "1rem", width: "100%", maxWidth: 320, flexDirection: "column" }}>
-                {amIHost
-                    ? <button className="btn btn-primary" onClick={handleStart}>▶ Start gry</button>
-                    : <div className="waiting-anim">Czekam na start od hosta <DotPulse /></div>
-                }
+                {amIHost ? (
+                    <>
+                        <div style={{ display: "flex", alignItems: "center", gap: ".75rem", justifyContent: "center" }}>
+                            <label style={{ color: "var(--muted)", fontSize: ".85rem", whiteSpace: "nowrap" }}>Czas rundy:</label>
+                            <select
+                                className="input"
+                                value={roundDuration}
+                                onChange={e => setRoundDuration(Number(e.target.value))}
+                                style={{ width: "auto", textAlign: "center" }}
+                            >
+                                {[5, 7, 10, 12, 15].map(s => (
+                                    <option key={s} value={s}>{s}s</option>
+                                ))}
+                            </select>
+                        </div>
+                        <button className="btn btn-primary" onClick={handleStart}>▶ Start gry</button>
+                    </>
+                ) : (
+                    <div className="waiting-anim">Czekam na start od hosta <DotPulse /></div>
+                )}
                 <button className="btn btn-secondary" onClick={handleLeave}>← Wyjdź z lobby</button>
             </div>
         </div>

@@ -51,6 +51,7 @@ public class SessionStateBuilder : ISessionStateBuilder
             EndsAt = round.EndsAt,
             RevealedAt = round.RevealedAt,
             AnswerTitle = round.State is RoundState.Revealed or RoundState.Finished ? round.AnswerTitle : null,
+            AnswerCharCount = round.AnswerTitle.Length,
             CorrectAnswerCount = round.CorrectAnswers?.Count ?? 0
         };
 

@@ -7,22 +7,22 @@ import "./styles.css";
 import "./screens.css";
 
 function AppInner() {
-  const [phase, setPhase] = useState("start");
+    const [phase, setPhase] = useState("start");
 
-  return (
-    <div className="app-root">
-      <div className="app-bg" />
-      {phase === "start" && <StartScreen onEnter={() => setPhase("lobby")} />}
-      {phase === "lobby" && <LobbyScreen onStart={() => setPhase("game")} />}
-      {phase === "game"  && <GameScreen />}
-    </div>
-  );
+    return (
+        <div className="app-root">
+            <div className="app-bg" />
+            {phase === "start" && <StartScreen onEnter={() => setPhase("lobby")} />}
+            {phase === "lobby" && <LobbyScreen onStart={() => setPhase("game")} />}
+            {phase === "game" && <GameScreen />}
+        </div>
+    );
 }
 
 export default function App() {
-  return (
-    <SessionProvider>
-      <AppInner />
-    </SessionProvider>
-  );
+    return (
+        <SessionProvider>
+            <AppInner />
+        </SessionProvider>
+    );
 }
