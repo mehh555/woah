@@ -6,11 +6,11 @@ using Woah.Api.Infrastructure.InMemory;
 using Woah.Api.Infrastructure.Persistence;
 using Woah.Api.Integrations.Itunes;
 using Woah.Api.Middleware;
+using Woah.Api.Services.Cleanup;
 using Woah.Api.Services.Lobby;
 using Woah.Api.Services.Notifications;
 using Woah.Api.Services.Playlist;
 using Woah.Api.Services.Session;
-using Woah.Api.Services.Cleanup;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,9 +38,9 @@ builder.Services.AddDbContext<WoahDbContext>(options =>
 builder.Services.AddScoped<ILobbyService, LobbyService>();
 builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<ILobbyPlaylistService, LobbyPlaylistService>();
-builder.Services.AddScoped<IAnswerNormalizer, AnswerNormalizer>();
 builder.Services.AddSingleton<IAnswerNormalizer, AnswerNormalizer>();
 builder.Services.AddSingleton<IScoreCalculator, LinearScoreCalculator>();
+builder.Services.AddScoped<ISessionProgressEngine, SessionProgressEngine>();
 builder.Services.AddScoped<ISessionStateBuilder, SessionStateBuilder>();
 builder.Services.AddScoped<IGameNotifier, GameNotifier>();
 builder.Services.AddSingleton<ILobbyCodeGenerator, LobbyCodeGenerator>();

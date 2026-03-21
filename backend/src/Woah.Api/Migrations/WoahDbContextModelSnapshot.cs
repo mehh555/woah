@@ -39,7 +39,8 @@ namespace Woah.Api.Migrations
 
                     b.Property<string>("SettingsJson")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("timestamp with time zone");
@@ -61,7 +62,8 @@ namespace Woah.Api.Migrations
 
                     b.Property<string>("Code")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -74,7 +76,8 @@ namespace Woah.Api.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.HasKey("LobbyId");
 
@@ -83,7 +86,10 @@ namespace Woah.Api.Migrations
 
                     b.HasIndex("HostPlayerId");
 
-                    b.ToTable("Lobbies");
+                    b.ToTable("Lobbies", t =>
+                        {
+                            t.HasCheckConstraint("CK_Lobby_MaxPlayers", "\"MaxPlayers\" >= 2 AND \"MaxPlayers\" <= 20");
+                        });
                 });
 
             modelBuilder.Entity("Woah.Api.Infrastructure.Persistence.Models.LobbyPlayerEntity", b =>
@@ -102,7 +108,8 @@ namespace Woah.Api.Migrations
 
                     b.Property<string>("Nick")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
 
                     b.HasKey("LobbyId", "PlayerId");
 
@@ -125,7 +132,9 @@ namespace Woah.Api.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Nick")
-                        .HasColumnType("text");
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
 
                     b.HasKey("PlayerId");
 
@@ -143,11 +152,13 @@ namespace Woah.Api.Migrations
 
                     b.Property<string>("Market")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<Guid>("OwnerPlayerId")
                         .HasColumnType("uuid");
@@ -177,7 +188,10 @@ namespace Woah.Api.Migrations
 
                     b.HasIndex("PlayerId");
 
-                    b.ToTable("RoundCorrectAnswers");
+                    b.ToTable("RoundCorrectAnswers", t =>
+                        {
+                            t.HasCheckConstraint("CK_RoundCorrectAnswer_Points", "\"Points\" >= 0");
+                        });
                 });
 
             modelBuilder.Entity("Woah.Api.Infrastructure.Persistence.Models.RoundEntity", b =>
@@ -186,16 +200,30 @@ namespace Woah.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AnswerArtist")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
                     b.Property<string>("AnswerNorm")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
 
                     b.Property<string>("AnswerTitle")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("ArtworkUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<DateTime?>("EndsAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("ItunesTrackId")
+                        .HasColumnType("bigint");
 
                     b.Property<Guid>("PlaylistId")
                         .HasColumnType("uuid");
@@ -205,7 +233,8 @@ namespace Woah.Api.Migrations
 
                     b.Property<string>("PreviewUrl")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<DateTime?>("RevealedAt")
                         .HasColumnType("timestamp with time zone");
@@ -221,14 +250,18 @@ namespace Woah.Api.Migrations
 
                     b.Property<string>("State")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.HasKey("RoundId");
 
                     b.HasIndex("SessionId", "RoundNo")
                         .IsUnique();
 
-                    b.ToTable("Rounds");
+                    b.ToTable("Rounds", t =>
+                        {
+                            t.HasCheckConstraint("CK_Round_RoundNo", "\"RoundNo\" >= 1");
+                        });
                 });
 
             modelBuilder.Entity("Woah.Api.Infrastructure.Persistence.Models.GameSessionEntity", b =>
