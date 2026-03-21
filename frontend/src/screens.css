@@ -1,0 +1,48 @@
+.start-screen { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; gap: 2rem; }
+.logo { text-align: center; }
+.logo-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(3rem, 10vw, 7rem); letter-spacing: .05em; line-height: 1; color: var(--accent); text-shadow: 0 0 40px rgba(240,224,64,.4), 0 4px 0 rgba(0,0,0,.5); }
+.logo-sub { font-size: .95rem; color: var(--muted); letter-spacing: .25em; text-transform: uppercase; margin-top: .4rem; }
+.cards-row { display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 760px; }
+
+.lobby-screen { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 2rem; gap: 1.5rem; max-width: 600px; margin: 0 auto; width: 100%; }
+.lobby-header { text-align: center; }
+.lobby-code-label { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .2em; }
+.lobby-code { font-family: 'Bebas Neue', sans-serif; font-size: clamp(2.5rem, 8vw, 5rem); color: var(--accent); letter-spacing: .15em; text-shadow: 0 0 30px rgba(240,224,64,.35); }
+.lobby-count { color: var(--muted); font-size: .9rem; margin-top: .2rem; }
+.players-list { background: var(--card); border: 1px solid var(--border); border-radius: 14px; width: 100%; overflow: hidden; }
+.player-row { display: flex; align-items: center; gap: .75rem; padding: .85rem 1.2rem; border-bottom: 1px solid var(--border); animation: fadeLeft .3s ease both; }
+.player-row:last-child { border-bottom: none; }
+.player-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent3); box-shadow: 0 0 8px rgba(0,229,160,.6); flex-shrink: 0; }
+.player-nick { flex: 1; font-weight: 500; }
+.host-badge { font-size: .72rem; background: rgba(240,224,64,.12); color: var(--accent); border: 1px solid rgba(240,224,64,.3); border-radius: 20px; padding: .2rem .6rem; text-transform: uppercase; letter-spacing: .1em; }
+.waiting-anim { color: var(--muted); font-size: .9rem; text-align: center; display: flex; align-items: center; gap: .5rem; justify-content: center; }
+.dot-pulse span { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: pulse 1.2s ease-in-out infinite; margin: 0 2px; }
+.dot-pulse span:nth-child(2) { animation-delay: .2s; }
+.dot-pulse span:nth-child(3) { animation-delay: .4s; }
+
+.game-screen { flex: 1; display: flex; flex-direction: column; }
+.game-top { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 1.5rem 1.5rem 1rem; gap: 1.2rem; max-width: 640px; margin: 0 auto; width: 100%; }
+.round-badge { background: rgba(240,224,64,.1); border: 1px solid rgba(240,224,64,.25); border-radius: 20px; padding: .35rem 1rem; font-size: .82rem; color: var(--accent); letter-spacing: .15em; text-transform: uppercase; font-weight: 500; }
+.song-area { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; padding: 2rem; text-align: center; position: relative; overflow: hidden; }
+.song-area::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 0%, rgba(240,224,64,.07) 0%, transparent 70%); pointer-events: none; }
+.music-icon { font-size: 3.5rem; margin-bottom: .6rem; animation: bounce 2s ease-in-out infinite; }
+.song-hint { color: var(--muted); font-size: .85rem; margin-bottom: .3rem; text-transform: uppercase; letter-spacing: .12em; }
+.song-chars { font-family: 'Bebas Neue', sans-serif; font-size: clamp(1.8rem, 5vw, 2.5rem); letter-spacing: .3em; color: var(--text); }
+.guess-row { display: flex; gap: .8rem; width: 100%; flex-wrap: wrap; }
+.guess-row .input { flex: 1 1 180px; }
+.feedback { padding: .5rem 1rem; border-radius: 8px; font-weight: 500; font-size: .95rem; text-align: center; animation: pop .3s ease; }
+.feedback.correct { background: rgba(0,229,160,.12); color: var(--accent3); border: 1px solid var(--accent3); }
+.feedback.wrong { background: rgba(255,95,87,.1); color: var(--accent2); border: 1px solid var(--accent2); }
+.timer-wrap { width: 100%; background: var(--border); border-radius: 99px; height: 6px; overflow: hidden; }
+.timer-bar { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent3), var(--accent)); }
+.timer-bar.danger { background: var(--accent2); }
+
+.players-panel { background: var(--surface); border-top: 1px solid var(--border); padding: .9rem 1.2rem; display: flex; gap: .75rem; overflow-x: auto; scroll-snap-type: x mandatory; position: sticky; bottom: 0; }
+.players-panel::-webkit-scrollbar { height: 3px; }
+.players-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.player-chip { display: flex; flex-direction: column; align-items: center; gap: .25rem; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: .6rem 1rem; min-width: 80px; flex-shrink: 0; scroll-snap-align: start; transition: border-color .25s, transform .25s; }
+.player-chip.guessed { border-color: var(--accent3); box-shadow: 0 0 12px rgba(0,229,160,.2); transform: translateY(-3px); }
+.player-chip.me { border-color: rgba(240,224,64,.4); background: rgba(240,224,64,.04); }
+.chip-nick { font-size: .8rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; }
+.chip-score { font-family: 'Bebas Neue', sans-serif; font-size: 1.15rem; color: var(--accent); letter-spacing: .05em; }
+.chip-guessed { font-size: .65rem; color: var(--accent3); text-transform: uppercase; letter-spacing: .1em; }

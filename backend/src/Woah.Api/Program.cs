@@ -29,7 +29,8 @@ builder.Services.AddScoped<ISessionProgressEngine, SessionProgressEngine>();
 builder.Services.AddScoped<ISessionStateBuilder, SessionStateBuilder>();
 builder.Services.AddSingleton<ILobbyCodeGenerator, LobbyCodeGenerator>();
 builder.Services.AddSingleton<ILobbyPlaylistStore, InMemoryLobbyPlaylistStore>();
-
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient<ItunesApiClient>(client =>
 {
     client.BaseAddress = new Uri("https://itunes.apple.com/");
@@ -41,7 +42,8 @@ builder.Services.AddHealthChecks()
     .AddDbContextCheck<WoahDbContext>("db", tags: new[] { "ready" });
 
 var app = builder.Build();
-
+app.UseSwagger();
+app.UseSwaggerUI();
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
 app.UseDefaultFiles();
