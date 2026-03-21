@@ -14,32 +14,19 @@ public class SessionProgressEngine : ISessionProgressEngine
         _dbContext = dbContext;
     }
 
-    public async Task EnsureProgressAsync(GameSessionEntity session, CancellationToken ct)
+    public async Task EnsurePlayingToRevealedAsync(GameSessionEntity session, CancellationToken ct)
     {
         if (session.EndedAt is not null) return;
 
+        var now = DateTime.UtcNow;
         var rounds = OrderedRounds(session);
-        var settings = SessionSettings.Parse(session.SettingsJson);
-        LobbyEntity? lobby = null;
 
-        while (session.EndedAt is null)
+        var playing = rounds.FirstOrDefault(x => x.State == RoundState.Playing);
+        if (playing?.EndsAt is not null && now >= playing.EndsAt.Value)
         {
-            var now = DateTime.UtcNow;
-
-            var playing = rounds.FirstOrDefault(x => x.State == RoundState.Playing);
-            if (playing?.EndsAt is not null && now >= playing.EndsAt.Value)
-            {
-                playing.State = RoundState.Revealed;
-                playing.RevealedAt = playing.EndsAt.Value;
-                await _dbContext.SaveChangesAsync(ct);
-            }
-
-            var revealed = rounds.FirstOrDefault(x => x.State == RoundState.Revealed);
-            if (revealed?.RevealedAt is null) break;
-            if (now < revealed.RevealedAt.Value.AddSeconds(settings.RevealDurationSeconds)) break;
-
-            lobby ??= await _dbContext.Lobbies.FirstAsync(x => x.LobbyId == session.LobbyId, ct);
-            await AdvanceFromRevealedAsync(session, lobby, revealed, rounds, settings, ct);
+            playing.State = RoundState.Revealed;
+            playing.RevealedAt = playing.EndsAt.Value;
+            await _dbContext.SaveChangesAsync(ct);
         }
     }
 
@@ -48,9 +35,10 @@ public class SessionProgressEngine : ISessionProgressEngine
         LobbyEntity lobby,
         RoundEntity revealed,
         List<RoundEntity> orderedRounds,
-        SessionSettings settings,
         CancellationToken ct)
     {
+        var settings = SessionSettings.Parse(session.SettingsJson);
+
         revealed.State = RoundState.Finished;
 
         var next = orderedRounds.FirstOrDefault(x => x.State == RoundState.Pending);
@@ -73,4 +61,6 @@ public class SessionProgressEngine : ISessionProgressEngine
 
     public static List<RoundEntity> OrderedRounds(GameSessionEntity session) =>
         (session.Rounds ?? new List<RoundEntity>())
-            .Ord
+            .OrderBy(x => x.RoundNo)
+            .ToList();
+}

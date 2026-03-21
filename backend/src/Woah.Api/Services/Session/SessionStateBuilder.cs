@@ -34,7 +34,7 @@ public class SessionStateBuilder : ISessionStateBuilder
             IsFinished = session.EndedAt is not null,
             TotalRounds = rounds.Count,
             CompletedRounds = rounds.Count(x => x.State == RoundState.Finished),
-            RevealDurationSeconds = settings.RevealDurationSeconds,
+            RoundDurationSeconds = settings.RoundDurationSeconds,
             CurrentRound = current is null ? null : MapRound(current),
             Leaderboard = BuildLeaderboard(lobby.ActivePlayers(), rounds)
         };

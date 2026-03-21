@@ -49,8 +49,7 @@ public class SessionService : ISessionService
             throw new BadRequestException("Playlist must contain at least one track before starting.");
 
         var settings = new SessionSettings(
-            Math.Clamp(request.RoundDurationSeconds, 5, 60),
-            Math.Clamp(request.RevealDurationSeconds, 3, 15));
+            Math.Clamp(request.RoundDurationSeconds, 5, 15));
 
         Shuffle(tracks);
 
@@ -90,14 +89,14 @@ public class SessionService : ISessionService
     public async Task<GetSessionStateResponse> GetSessionStateAsync(Guid sessionId, CancellationToken ct = default)
     {
         var session = await LoadSessionAsync(sessionId, ct);
-        await _progressEngine.EnsureProgressAsync(session, ct);
+        await _progressEngine.EnsurePlayingToRevealedAsync(session, ct);
         return await _stateBuilder.BuildAsync(session, ct);
     }
 
     public async Task<SubmitAnswerResponse> SubmitAnswerAsync(Guid sessionId, SubmitAnswerRequest request, CancellationToken ct = default)
     {
         var session = await LoadSessionAsync(sessionId, ct);
-        await _progressEngine.EnsureProgressAsync(session, ct);
+        await _progressEngine.EnsurePlayingToRevealedAsync(session, ct);
 
         if (session.EndedAt is not null)
             return Reject("Session has already finished.");
@@ -117,7 +116,7 @@ public class SessionService : ISessionService
 
         if (round.EndsAt is not null && DateTime.UtcNow >= round.EndsAt.Value)
         {
-            await _progressEngine.EnsureProgressAsync(session, ct);
+            await _progressEngine.EnsurePlayingToRevealedAsync(session, ct);
             return Reject("Round has already ended.");
         }
 
@@ -158,13 +157,12 @@ public class SessionService : ISessionService
         if (lobby.HostPlayerId != request.HostPlayerId)
             throw new ForbiddenException("Only the host can advance the session.");
 
-        await _progressEngine.EnsureProgressAsync(session, ct);
+        await _progressEngine.EnsurePlayingToRevealedAsync(session, ct);
 
         if (session.EndedAt is not null)
             return await _stateBuilder.BuildAsync(session, ct);
 
         var rounds = SessionProgressEngine.OrderedRounds(session);
-        var settings = SessionSettings.Parse(session.SettingsJson);
 
         var playing = rounds.FirstOrDefault(x => x.State == RoundState.Playing);
         if (playing is not null)
@@ -177,7 +175,7 @@ public class SessionService : ISessionService
 
         var revealed = rounds.FirstOrDefault(x => x.State == RoundState.Revealed);
         if (revealed is not null)
-            await _progressEngine.AdvanceFromRevealedAsync(session, lobby, revealed, rounds, settings, ct);
+            await _progressEngine.AdvanceFromRevealedAsync(session, lobby, revealed, rounds, ct);
 
         return await _stateBuilder.BuildAsync(session, ct);
     }

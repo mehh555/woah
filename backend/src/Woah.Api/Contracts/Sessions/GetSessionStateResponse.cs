@@ -10,7 +10,7 @@ public class GetSessionStateResponse
     public bool IsFinished { get; set; }
     public int TotalRounds { get; set; }
     public int CompletedRounds { get; set; }
-    public int RevealDurationSeconds { get; set; }
+    public int RoundDurationSeconds { get; set; }
     public SessionRoundResponse? CurrentRound { get; set; }
     public List<SessionLeaderboardEntryResponse> Leaderboard { get; set; } = new();
 }
