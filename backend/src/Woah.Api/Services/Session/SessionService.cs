@@ -4,6 +4,7 @@ using Woah.Api.Domain;
 using Woah.Api.Exceptions;
 using Woah.Api.Infrastructure.Persistence;
 using Woah.Api.Infrastructure.Persistence.Models;
+using Woah.Api.Services.Notifications;
 using Woah.Api.Services.Playlist;
 
 namespace Woah.Api.Services.Session;
@@ -16,6 +17,7 @@ public class SessionService : ISessionService
     private readonly IScoreCalculator _scoreCalculator;
     private readonly ISessionProgressEngine _progressEngine;
     private readonly ISessionStateBuilder _stateBuilder;
+    private readonly IGameNotifier _notifier;
 
     public SessionService(
         WoahDbContext dbContext,
@@ -23,7 +25,8 @@ public class SessionService : ISessionService
         IAnswerNormalizer normalizer,
         IScoreCalculator scoreCalculator,
         ISessionProgressEngine progressEngine,
-        ISessionStateBuilder stateBuilder)
+        ISessionStateBuilder stateBuilder,
+        IGameNotifier notifier)
     {
         _dbContext = dbContext;
         _playlistStore = playlistStore;
@@ -31,6 +34,7 @@ public class SessionService : ISessionService
         _scoreCalculator = scoreCalculator;
         _progressEngine = progressEngine;
         _stateBuilder = stateBuilder;
+        _notifier = notifier;
     }
 
     public async Task<StartSessionResponse> StartSessionAsync(string lobbyCode, StartSessionRequest request, CancellationToken ct = default)
@@ -67,6 +71,8 @@ public class SessionService : ISessionService
             await tx.CommitAsync(ct);
 
             _playlistStore.Clear(lobby.Code);
+
+            await _notifier.SessionStarted(lobby.Code, session.SessionId);
 
             return new StartSessionResponse
             {
@@ -130,6 +136,8 @@ public class SessionService : ISessionService
         var elapsed = Math.Max((DateTime.UtcNow - round.StartedAt).TotalSeconds, 0);
         var points = _scoreCalculator.Calculate(settings.RoundDurationSeconds, elapsed);
 
+        var player = lobby.ActivePlayers().First(x => x.PlayerId == request.PlayerId);
+
         try
         {
             _dbContext.RoundCorrectAnswers.Add(new RoundCorrectAnswerEntity
@@ -145,6 +153,8 @@ public class SessionService : ISessionService
         {
             return AlreadyAnswered();
         }
+
+        await _notifier.PlayerAnsweredCorrectly(sessionId, request.PlayerId, player.Nick, points);
 
         return new SubmitAnswerResponse { Accepted = true, IsCorrect = true, AlreadyAnswered = false, PointsAwarded = points, Message = "Correct answer." };
     }
@@ -170,6 +180,7 @@ public class SessionService : ISessionService
             playing.State = RoundState.Revealed;
             playing.RevealedAt = DateTime.UtcNow;
             await _dbContext.SaveChangesAsync(ct);
+            await _notifier.SessionUpdated(sessionId);
             return await _stateBuilder.BuildAsync(session, ct);
         }
 

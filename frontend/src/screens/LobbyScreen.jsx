@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getLobby, createSession, leaveLobby } from "../api/client.js";
 import { useSession } from "../context/SessionContext.jsx";
 import { usePolling } from "../hooks/usePolling.js";
+import { useGameHub } from "../hooks/useGameHub.js";
 import DotPulse from "../components/DotPulse.jsx";
 import PlaylistPanel from "../components/PlaylistPanel.jsx";
 
@@ -9,9 +10,23 @@ export default function LobbyScreen({ onStart }) {
     const { session, setSession } = useSession();
     const [roundDuration, setRoundDuration] = useState(10);
     const fetchLobby = useCallback(() => getLobby(session.lobbyCode), [session.lobbyCode]);
-    const { data: lobby, error } = usePolling(fetchLobby);
+    const { data: lobby, error, refetch } = usePolling(fetchLobby, 10000);
 
     const amIHost = lobby ? lobby.hostPlayerId === session.playerId : session.isHost;
+
+    const { invoke, connected } = useGameHub({
+        LobbyUpdated: () => refetch(),
+        SessionStarted: ({ sessionId }) => {
+            setSession(prev => ({ ...prev, sessionId }));
+            onStart();
+        }
+    }, [refetch, setSession, onStart]);
+
+    useEffect(() => {
+        if (connected) {
+            invoke("JoinLobby", session.lobbyCode);
+        }
+    }, [connected, invoke, session.lobbyCode]);
 
     useEffect(() => {
         if (!lobby) return;

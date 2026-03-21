@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Woah.Api.Hubs;
 using Woah.Api.Infrastructure.InMemory;
 using Woah.Api.Infrastructure.Persistence;
 using Woah.Api.Integrations.Itunes;
 using Woah.Api.Middleware;
 using Woah.Api.Services.Lobby;
+using Woah.Api.Services.Notifications;
 using Woah.Api.Services.Playlist;
 using Woah.Api.Services.Session;
 
@@ -14,6 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddUserSecrets<Program>(optional: true);
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
@@ -23,7 +26,8 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins("http://localhost:5173")
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 
@@ -37,6 +41,7 @@ builder.Services.AddScoped<IAnswerNormalizer, AnswerNormalizer>();
 builder.Services.AddScoped<IScoreCalculator, LinearScoreCalculator>();
 builder.Services.AddScoped<ISessionProgressEngine, SessionProgressEngine>();
 builder.Services.AddScoped<ISessionStateBuilder, SessionStateBuilder>();
+builder.Services.AddScoped<IGameNotifier, GameNotifier>();
 builder.Services.AddSingleton<ILobbyCodeGenerator, LobbyCodeGenerator>();
 builder.Services.AddSingleton<ILobbyPlaylistStore, InMemoryLobbyPlaylistStore>();
 builder.Services.AddEndpointsApiExplorer();
@@ -61,6 +66,7 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<GameHub>("/hubs/game");
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = c => c.Tags.Contains("live") });
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = c => c.Tags.Contains("ready") });

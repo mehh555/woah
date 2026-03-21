@@ -2,16 +2,19 @@
 using Woah.Api.Domain;
 using Woah.Api.Infrastructure.Persistence;
 using Woah.Api.Infrastructure.Persistence.Models;
+using Woah.Api.Services.Notifications;
 
 namespace Woah.Api.Services.Session;
 
 public class SessionProgressEngine : ISessionProgressEngine
 {
     private readonly WoahDbContext _dbContext;
+    private readonly IGameNotifier _notifier;
 
-    public SessionProgressEngine(WoahDbContext dbContext)
+    public SessionProgressEngine(WoahDbContext dbContext, IGameNotifier notifier)
     {
         _dbContext = dbContext;
+        _notifier = notifier;
     }
 
     public async Task EnsurePlayingToRevealedAsync(GameSessionEntity session, CancellationToken ct)
@@ -27,6 +30,7 @@ public class SessionProgressEngine : ISessionProgressEngine
             playing.State = RoundState.Revealed;
             playing.RevealedAt = playing.EndsAt.Value;
             await _dbContext.SaveChangesAsync(ct);
+            await _notifier.SessionUpdated(session.SessionId);
         }
     }
 
@@ -57,6 +61,7 @@ public class SessionProgressEngine : ISessionProgressEngine
         }
 
         await _dbContext.SaveChangesAsync(ct);
+        await _notifier.SessionUpdated(session.SessionId);
     }
 
     public static List<RoundEntity> OrderedRounds(GameSessionEntity session) =>

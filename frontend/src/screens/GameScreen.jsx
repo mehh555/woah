@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getSession, submitAnswer, advanceSession } from "../api/client.js";
 import { useSession } from "../context/SessionContext.jsx";
 import { usePolling } from "../hooks/usePolling.js";
+import { useGameHub } from "../hooks/useGameHub.js";
 import PlayersPanel from "../components/PlayersPanel.jsx";
 import Timer from "../components/Timer.jsx";
 
@@ -17,7 +18,25 @@ export default function GameScreen() {
     const audioRef = useRef(null);
 
     const fetchSession = useCallback(() => getSession(session.sessionId), [session.sessionId]);
-    const { data: gameState, error } = usePolling(fetchSession, 1500);
+    const { data: gameState, error, refetch } = usePolling(fetchSession, 10000);
+
+    const { invoke, connected } = useGameHub({
+        SessionUpdated: () => refetch(),
+        PlayerAnsweredCorrectly: ({ playerId, points }) => {
+            setAnimScores(prev => ({ ...prev, [playerId]: true }));
+            setTimeout(() => setAnimScores(prev => {
+                const next = { ...prev };
+                delete next[playerId];
+                return next;
+            }), 600);
+        }
+    }, [refetch]);
+
+    useEffect(() => {
+        if (connected && session.sessionId) {
+            invoke("JoinSession", session.sessionId);
+        }
+    }, [connected, invoke, session.sessionId]);
 
     useEffect(() => {
         if (!gameState?.currentRound) return;
@@ -46,14 +65,14 @@ export default function GameScreen() {
 
     useEffect(() => {
         if (!gameState?.leaderboard) return;
-        const anims = {};
+        const newScores = {};
         gameState.leaderboard.forEach(p => {
             if (prevScoresRef.current[p.playerId] !== undefined && p.score !== prevScoresRef.current[p.playerId]) {
-                anims[p.playerId] = true;
+                newScores[p.playerId] = true;
             }
         });
-        if (Object.keys(anims).length) {
-            setAnimScores(anims);
+        if (Object.keys(newScores).length) {
+            setAnimScores(prev => ({ ...prev, ...newScores }));
             setTimeout(() => setAnimScores({}), 600);
         }
         prevScoresRef.current = Object.fromEntries(gameState.leaderboard.map(p => [p.playerId, p.score]));

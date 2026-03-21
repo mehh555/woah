@@ -4,6 +4,7 @@ using Woah.Api.Domain;
 using Woah.Api.Exceptions;
 using Woah.Api.Infrastructure.Persistence;
 using Woah.Api.Infrastructure.Persistence.Models;
+using Woah.Api.Services.Notifications;
 
 namespace Woah.Api.Services.Lobby;
 
@@ -11,11 +12,13 @@ public class LobbyService : ILobbyService
 {
     private readonly WoahDbContext _dbContext;
     private readonly ILobbyCodeGenerator _codeGenerator;
+    private readonly IGameNotifier _notifier;
 
-    public LobbyService(WoahDbContext dbContext, ILobbyCodeGenerator codeGenerator)
+    public LobbyService(WoahDbContext dbContext, ILobbyCodeGenerator codeGenerator, IGameNotifier notifier)
     {
         _dbContext = dbContext;
         _codeGenerator = codeGenerator;
+        _notifier = notifier;
     }
 
     public async Task<CreateLobbyResponse> CreateLobbyAsync(CreateLobbyRequest request, CancellationToken ct = default)
@@ -105,6 +108,8 @@ public class LobbyService : ILobbyService
         _dbContext.LobbyPlayers.Add(membership);
         await _dbContext.SaveChangesAsync(ct);
 
+        await _notifier.LobbyUpdated(lobby.Code);
+
         return new JoinLobbyResponse
         {
             PlayerId = player.PlayerId,
@@ -160,4 +165,44 @@ public class LobbyService : ILobbyService
         if (wasHost)
         {
             foreach (var m in (lobby.LobbyPlayers ?? new List<LobbyPlayerEntity>()).Where(x => x.LeftAt == null))
-                m
+                m.LeftAt = now;
+
+            lobby.Status = LobbyStatus.Finished;
+        }
+        else
+        {
+            membership.LeftAt = now;
+        }
+
+        await _dbContext.SaveChangesAsync(ct);
+
+        await _notifier.LobbyUpdated(lobby.Code);
+
+        return new LeaveLobbyResponse
+        {
+            LobbyId = lobby.LobbyId,
+            LobbyCode = lobby.Code,
+            PlayerId = request.PlayerId,
+            WasHost = wasHost,
+            LobbyStatus = lobby.Status
+        };
+    }
+
+    private async Task<LobbyEntity> GetLobbyWithPlayersAsync(string normalizedCode, CancellationToken ct) =>
+        await _dbContext.Lobbies
+            .Include(x => x.LobbyPlayers)
+            .FirstOrDefaultAsync(x => x.Code == normalizedCode, ct)
+        ?? throw new NotFoundException("Lobby not found.");
+
+    private async Task<string> GenerateUniqueCodeAsync(CancellationToken ct)
+    {
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            var code = _codeGenerator.Generate();
+            var exists = await _dbContext.Lobbies.AnyAsync(x => x.Code == code, ct);
+            if (!exists) return code;
+        }
+
+        throw new BadRequestException("Could not generate a unique lobby code.");
+    }
+}

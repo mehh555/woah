@@ -1,5 +1,4 @@
-﻿using Woah.Api.Domain;
-using Woah.Api.Infrastructure.Persistence.Models;
+﻿using Woah.Api.Infrastructure.Persistence.Models;
 
 namespace Woah.Api.Services.Session;
 

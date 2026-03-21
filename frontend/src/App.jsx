@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SessionProvider } from "./context/SessionContext.jsx";
+import { GameHubProvider } from "./context/GameHubContext.jsx";
 import StartScreen from "./screens/StartScreen.jsx";
 import LobbyScreen from "./screens/LobbyScreen.jsx";
 import GameScreen from "./screens/GameScreen.jsx";
@@ -22,7 +23,9 @@ function AppInner() {
 export default function App() {
     return (
         <SessionProvider>
-            <AppInner />
+            <GameHubProvider>
+                <AppInner />
+            </GameHubProvider>
         </SessionProvider>
     );
 }

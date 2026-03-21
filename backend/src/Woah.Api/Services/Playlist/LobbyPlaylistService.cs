@@ -5,6 +5,7 @@ using Woah.Api.Exceptions;
 using Woah.Api.Infrastructure.Persistence;
 using Woah.Api.Infrastructure.Persistence.Models;
 using Woah.Api.Integrations.Itunes;
+using Woah.Api.Services.Notifications;
 
 namespace Woah.Api.Services.Playlist;
 
@@ -15,12 +16,14 @@ public class LobbyPlaylistService : ILobbyPlaylistService
     private readonly WoahDbContext _dbContext;
     private readonly ItunesApiClient _itunesClient;
     private readonly ILobbyPlaylistStore _store;
+    private readonly IGameNotifier _notifier;
 
-    public LobbyPlaylistService(WoahDbContext dbContext, ItunesApiClient itunesClient, ILobbyPlaylistStore store)
+    public LobbyPlaylistService(WoahDbContext dbContext, ItunesApiClient itunesClient, ILobbyPlaylistStore store, IGameNotifier notifier)
     {
         _dbContext = dbContext;
         _itunesClient = itunesClient;
         _store = store;
+        _notifier = notifier;
     }
 
     public async Task<List<ItunesTrackSearchResultResponse>> SearchTracksAsync(string term, CancellationToken ct = default)
@@ -57,7 +60,49 @@ public class LobbyPlaylistService : ILobbyPlaylistService
         if (!_store.TryAddTrack(lobby.Code, LobbyTrackMapper.ToDraft(track)))
             throw new BadRequestException("Track already exists in the lobby playlist.");
 
+        await _notifier.LobbyUpdated(lobby.Code);
+
         return await GetLobbyPlaylistAsync(lobby.Code, ct);
     }
 
-    public async Task<GetLobbyPlaylistResponse> RemoveTrackAsync(string lobbyCode, long trackId, RemoveLobbyTrackRequest request, CancellationToken ct = def
+    public async Task<GetLobbyPlaylistResponse> RemoveTrackAsync(string lobbyCode, long trackId, RemoveLobbyTrackRequest request, CancellationToken ct = default)
+    {
+        var lobby = await GetLobbyForHostAsync(lobbyCode, request.HostPlayerId, ct);
+
+        if (!_store.RemoveTrack(lobby.Code, trackId))
+            throw new BadRequestException("Track not found in the lobby playlist.");
+
+        await _notifier.LobbyUpdated(lobby.Code);
+
+        return await GetLobbyPlaylistAsync(lobby.Code, ct);
+    }
+
+    public void ClearLobbyPlaylist(string lobbyCode)
+        => _store.Clear(lobbyCode.NormalizeCode());
+
+    private async Task EnsureLobbyExistsAsync(string normalizedCode, CancellationToken ct)
+    {
+        var exists = await _dbContext.Lobbies.AnyAsync(x => x.Code == normalizedCode, ct);
+        if (!exists)
+            throw new NotFoundException("Lobby not found.");
+    }
+
+    private async Task<LobbyEntity> GetLobbyForHostAsync(string lobbyCode, Guid hostPlayerId, CancellationToken ct)
+    {
+        var lobby = await _dbContext.Lobbies
+            .Include(x => x.LobbyPlayers)
+            .FirstOrDefaultAsync(x => x.Code == lobbyCode.NormalizeCode(), ct)
+            ?? throw new NotFoundException("Lobby not found.");
+
+        if (lobby.Status != LobbyStatus.Waiting)
+            throw new BadRequestException("Tracks can be modified only while lobby is waiting.");
+
+        if (lobby.HostPlayerId != hostPlayerId)
+            throw new ForbiddenException("Only the host can modify the lobby playlist.");
+
+        if (!(lobby.LobbyPlayers ?? new List<LobbyPlayerEntity>()).Any(x => x.PlayerId == hostPlayerId && x.LeftAt == null))
+            throw new BadRequestException("Host is not active in this lobby.");
+
+        return lobby;
+    }
+}
