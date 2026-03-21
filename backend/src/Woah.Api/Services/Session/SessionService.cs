@@ -18,6 +18,7 @@ public class SessionService : ISessionService
     private readonly ISessionProgressEngine _progressEngine;
     private readonly ISessionStateBuilder _stateBuilder;
     private readonly IGameNotifier _notifier;
+    private readonly ILogger<SessionService> _logger;
 
     public SessionService(
         WoahDbContext dbContext,
@@ -26,7 +27,8 @@ public class SessionService : ISessionService
         IScoreCalculator scoreCalculator,
         ISessionProgressEngine progressEngine,
         ISessionStateBuilder stateBuilder,
-        IGameNotifier notifier)
+        IGameNotifier notifier,
+        ILogger<SessionService> logger)
     {
         _dbContext = dbContext;
         _playlistStore = playlistStore;
@@ -35,6 +37,7 @@ public class SessionService : ISessionService
         _progressEngine = progressEngine;
         _stateBuilder = stateBuilder;
         _notifier = notifier;
+        _logger = logger;
     }
 
     public async Task<StartSessionResponse> StartSessionAsync(string lobbyCode, StartSessionRequest request, CancellationToken ct = default)
@@ -71,6 +74,10 @@ public class SessionService : ISessionService
             await tx.CommitAsync(ct);
 
             _playlistStore.Clear(lobby.Code);
+
+            _logger.LogInformation(
+                "Session {SessionId} started in lobby {LobbyCode} with {RoundCount} rounds (duration={Duration}s)",
+                session.SessionId, lobby.Code, session.Rounds.Count, settings.RoundDurationSeconds);
 
             await _notifier.SessionStarted(lobby.Code, session.SessionId);
 
@@ -130,7 +137,12 @@ public class SessionService : ISessionService
             return AlreadyAnswered();
 
         if (!string.Equals(_normalizer.Normalize(request.Answer), round.AnswerNorm, StringComparison.Ordinal))
+        {
+            _logger.LogDebug(
+                "Incorrect answer from {PlayerId} in session {SessionId} round {RoundNo}",
+                request.PlayerId, sessionId, round.RoundNo);
             return new SubmitAnswerResponse { Accepted = true, IsCorrect = false, AlreadyAnswered = false, PointsAwarded = 0, Message = "Incorrect answer." };
+        }
 
         var settings = SessionSettings.Parse(session.SettingsJson);
         var elapsed = Math.Max((DateTime.UtcNow - round.StartedAt).TotalSeconds, 0);
@@ -153,6 +165,10 @@ public class SessionService : ISessionService
         {
             return AlreadyAnswered();
         }
+
+        _logger.LogInformation(
+            "Correct answer from {Nick} ({PlayerId}) in session {SessionId} round {RoundNo} — {Points} pts",
+            player.Nick, request.PlayerId, sessionId, round.RoundNo, points);
 
         await _notifier.PlayerAnsweredCorrectly(sessionId, request.PlayerId, player.Nick, points);
 
@@ -180,13 +196,21 @@ public class SessionService : ISessionService
             playing.State = RoundState.Revealed;
             playing.RevealedAt = DateTime.UtcNow;
             await _dbContext.SaveChangesAsync(ct);
+
+            _logger.LogInformation("Round {RoundNo} revealed (skipped) in session {SessionId}", playing.RoundNo, sessionId);
+
             await _notifier.SessionUpdated(sessionId);
             return await _stateBuilder.BuildAsync(session, ct);
         }
 
         var revealed = rounds.FirstOrDefault(x => x.State == RoundState.Revealed);
         if (revealed is not null)
+        {
             await _progressEngine.AdvanceFromRevealedAsync(session, lobby, revealed, rounds, ct);
+
+            if (session.EndedAt is not null)
+                _logger.LogInformation("Session {SessionId} finished in lobby {LobbyCode}", sessionId, lobby.Code);
+        }
 
         return await _stateBuilder.BuildAsync(session, ct);
     }

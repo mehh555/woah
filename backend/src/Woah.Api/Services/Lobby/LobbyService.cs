@@ -13,12 +13,14 @@ public class LobbyService : ILobbyService
     private readonly WoahDbContext _dbContext;
     private readonly ILobbyCodeGenerator _codeGenerator;
     private readonly IGameNotifier _notifier;
+    private readonly ILogger<LobbyService> _logger;
 
-    public LobbyService(WoahDbContext dbContext, ILobbyCodeGenerator codeGenerator, IGameNotifier notifier)
+    public LobbyService(WoahDbContext dbContext, ILobbyCodeGenerator codeGenerator, IGameNotifier notifier, ILogger<LobbyService> logger)
     {
         _dbContext = dbContext;
         _codeGenerator = codeGenerator;
         _notifier = notifier;
+        _logger = logger;
     }
 
     public async Task<CreateLobbyResponse> CreateLobbyAsync(CreateLobbyRequest request, CancellationToken ct = default)
@@ -66,6 +68,8 @@ public class LobbyService : ILobbyService
         _dbContext.Playlists.Add(playlist);
         await _dbContext.SaveChangesAsync(ct);
 
+        _logger.LogInformation("Lobby {LobbyCode} created by {Nick} (HostPlayerId={HostPlayerId})", code, nick, host.PlayerId);
+
         return new CreateLobbyResponse
         {
             LobbyId = lobby.LobbyId,
@@ -88,10 +92,16 @@ public class LobbyService : ILobbyService
         var active = lobby.ActivePlayers();
 
         if (active.Count >= lobby.MaxPlayers)
+        {
+            _logger.LogWarning("Join rejected — lobby {LobbyCode} is full ({Count}/{Max})", lobby.Code, active.Count, lobby.MaxPlayers);
             throw new BadRequestException("Lobby is full.");
+        }
 
         if (active.Any(x => string.Equals(x.Nick, nick, StringComparison.OrdinalIgnoreCase)))
+        {
+            _logger.LogWarning("Join rejected — nick {Nick} already taken in lobby {LobbyCode}", nick, lobby.Code);
             throw new BadRequestException("Nick is already taken in this lobby.");
+        }
 
         var player = new PlayerEntity { PlayerId = Guid.NewGuid(), Nick = nick, CreatedAt = now };
         var membership = new LobbyPlayerEntity
@@ -107,6 +117,8 @@ public class LobbyService : ILobbyService
         _dbContext.Players.Add(player);
         _dbContext.LobbyPlayers.Add(membership);
         await _dbContext.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Player {Nick} (PlayerId={PlayerId}) joined lobby {LobbyCode}", nick, player.PlayerId, lobby.Code);
 
         await _notifier.LobbyUpdated(lobby.Code);
 
@@ -168,10 +180,12 @@ public class LobbyService : ILobbyService
                 m.LeftAt = now;
 
             lobby.Status = LobbyStatus.Finished;
+            _logger.LogInformation("Host {PlayerId} left lobby {LobbyCode} — lobby closed", request.PlayerId, lobby.Code);
         }
         else
         {
             membership.LeftAt = now;
+            _logger.LogInformation("Player {PlayerId} left lobby {LobbyCode}", request.PlayerId, lobby.Code);
         }
 
         await _dbContext.SaveChangesAsync(ct);
@@ -203,6 +217,7 @@ public class LobbyService : ILobbyService
             if (!exists) return code;
         }
 
+        _logger.LogError("Failed to generate unique lobby code after 10 attempts");
         throw new BadRequestException("Could not generate a unique lobby code.");
     }
 }

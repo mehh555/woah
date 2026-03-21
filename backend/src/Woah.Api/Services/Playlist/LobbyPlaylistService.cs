@@ -17,13 +17,15 @@ public class LobbyPlaylistService : ILobbyPlaylistService
     private readonly ItunesApiClient _itunesClient;
     private readonly ILobbyPlaylistStore _store;
     private readonly IGameNotifier _notifier;
+    private readonly ILogger<LobbyPlaylistService> _logger;
 
-    public LobbyPlaylistService(WoahDbContext dbContext, ItunesApiClient itunesClient, ILobbyPlaylistStore store, IGameNotifier notifier)
+    public LobbyPlaylistService(WoahDbContext dbContext, ItunesApiClient itunesClient, ILobbyPlaylistStore store, IGameNotifier notifier, ILogger<LobbyPlaylistService> logger)
     {
         _dbContext = dbContext;
         _itunesClient = itunesClient;
         _store = store;
         _notifier = notifier;
+        _logger = logger;
     }
 
     public async Task<List<ItunesTrackSearchResultResponse>> SearchTracksAsync(string term, CancellationToken ct = default)
@@ -52,13 +54,18 @@ public class LobbyPlaylistService : ILobbyPlaylistService
         var lobby = await GetLobbyForHostAsync(lobbyCode, request.HostPlayerId, ct);
 
         if (_store.GetTracks(lobby.Code).Count >= MaxPlaylistTracks)
+        {
+            _logger.LogWarning("Playlist limit reached for lobby {LobbyCode} ({Max} tracks)", lobby.Code, MaxPlaylistTracks);
             throw new BadRequestException($"Playlist cannot exceed {MaxPlaylistTracks} tracks.");
+        }
 
         var track = await _itunesClient.LookupSongAsync(request.TrackId, ct)
             ?? throw new BadRequestException("Track not found in iTunes or preview is unavailable.");
 
         if (!_store.TryAddTrack(lobby.Code, LobbyTrackMapper.ToDraft(track)))
             throw new BadRequestException("Track already exists in the lobby playlist.");
+
+        _logger.LogInformation("Track {TrackId} added to lobby {LobbyCode} playlist", request.TrackId, lobby.Code);
 
         await _notifier.LobbyUpdated(lobby.Code);
 
@@ -71,6 +78,8 @@ public class LobbyPlaylistService : ILobbyPlaylistService
 
         if (!_store.RemoveTrack(lobby.Code, trackId))
             throw new BadRequestException("Track not found in the lobby playlist.");
+
+        _logger.LogInformation("Track {TrackId} removed from lobby {LobbyCode} playlist", trackId, lobby.Code);
 
         await _notifier.LobbyUpdated(lobby.Code);
 

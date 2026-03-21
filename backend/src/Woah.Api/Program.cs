@@ -10,6 +10,7 @@ using Woah.Api.Services.Lobby;
 using Woah.Api.Services.Notifications;
 using Woah.Api.Services.Playlist;
 using Woah.Api.Services.Session;
+using Woah.Api.Services.Cleanup;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,6 +45,7 @@ builder.Services.AddScoped<ISessionStateBuilder, SessionStateBuilder>();
 builder.Services.AddScoped<IGameNotifier, GameNotifier>();
 builder.Services.AddSingleton<ILobbyCodeGenerator, LobbyCodeGenerator>();
 builder.Services.AddSingleton<ILobbyPlaylistStore, InMemoryLobbyPlaylistStore>();
+builder.Services.AddHostedService<StaleGameCleanupService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
