@@ -18,25 +18,29 @@ public class SessionProgressEngine : ISessionProgressEngine
     {
         if (session.EndedAt is not null) return;
 
-        var now = DateTime.UtcNow;
         var rounds = OrderedRounds(session);
-
-        var playing = rounds.FirstOrDefault(x => x.State == RoundState.Playing);
-        if (playing?.EndsAt is not null && now >= playing.EndsAt.Value)
-        {
-            playing.State = RoundState.Revealed;
-            playing.RevealedAt = now;
-            await _dbContext.SaveChangesAsync(ct);
-        }
-
-        var revealed = rounds.FirstOrDefault(x => x.State == RoundState.Revealed);
-        if (revealed?.RevealedAt is null) return;
-
         var settings = SessionSettings.Parse(session.SettingsJson);
-        if (now < revealed.RevealedAt.Value.AddSeconds(settings.RevealDurationSeconds)) return;
+        LobbyEntity? lobby = null;
 
-        var lobby = await _dbContext.Lobbies.FirstAsync(x => x.LobbyId == session.LobbyId, ct);
-        await AdvanceFromRevealedAsync(session, lobby, revealed, rounds, settings, ct);
+        while (session.EndedAt is null)
+        {
+            var now = DateTime.UtcNow;
+
+            var playing = rounds.FirstOrDefault(x => x.State == RoundState.Playing);
+            if (playing?.EndsAt is not null && now >= playing.EndsAt.Value)
+            {
+                playing.State = RoundState.Revealed;
+                playing.RevealedAt = playing.EndsAt.Value;
+                await _dbContext.SaveChangesAsync(ct);
+            }
+
+            var revealed = rounds.FirstOrDefault(x => x.State == RoundState.Revealed);
+            if (revealed?.RevealedAt is null) break;
+            if (now < revealed.RevealedAt.Value.AddSeconds(settings.RevealDurationSeconds)) break;
+
+            lobby ??= await _dbContext.Lobbies.FirstAsync(x => x.LobbyId == session.LobbyId, ct);
+            await AdvanceFromRevealedAsync(session, lobby, revealed, rounds, settings, ct);
+        }
     }
 
     public async Task AdvanceFromRevealedAsync(
@@ -69,6 +73,4 @@ public class SessionProgressEngine : ISessionProgressEngine
 
     public static List<RoundEntity> OrderedRounds(GameSessionEntity session) =>
         (session.Rounds ?? new List<RoundEntity>())
-            .OrderBy(x => x.RoundNo)
-            .ToList();
-}
+            .Ord

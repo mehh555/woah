@@ -46,7 +46,7 @@ public class SessionService : ISessionService
         var tracks = _playlistStore.GetTracks(lobby.Code).ToList();
 
         if (tracks.Count == 0)
-            throw new InvalidOperationException("Playlist must contain at least one track before starting.");
+            throw new BadRequestException("Playlist must contain at least one track before starting.");
 
         var settings = new SessionSettings(
             Math.Clamp(request.RoundDurationSeconds, 5, 60),
@@ -58,7 +58,7 @@ public class SessionService : ISessionService
         try
         {
             if (await _dbContext.GameSessions.AnyAsync(x => x.LobbyId == lobby.LobbyId && x.EndedAt == null, ct))
-                throw new InvalidOperationException("An active session already exists for this lobby.");
+                throw new BadRequestException("An active session already exists for this lobby.");
 
             var session = BuildSession(lobby, playlist, tracks, settings, _normalizer);
             lobby.Status = LobbyStatus.InGame;
@@ -197,13 +197,13 @@ public class SessionService : ISessionService
     private static void ValidateSessionStart(LobbyEntity lobby, StartSessionRequest request)
     {
         if (lobby.Status != LobbyStatus.Waiting)
-            throw new InvalidOperationException("Only waiting lobbies can start a session.");
+            throw new BadRequestException("Only waiting lobbies can start a session.");
 
         if (lobby.HostPlayerId != request.HostPlayerId)
             throw new ForbiddenException("Only the host can start the session.");
 
         if (!lobby.ActivePlayers().Any(x => x.PlayerId == request.HostPlayerId))
-            throw new InvalidOperationException("Host is not active in this lobby.");
+            throw new BadRequestException("Host is not active in this lobby.");
     }
 
     private static GameSessionEntity BuildSession(

@@ -17,6 +17,16 @@ builder.Services.AddControllers();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 builder.Services.AddDbContext<WoahDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("WoahDb")));
 
@@ -46,6 +56,7 @@ app.UseSwagger();
 app.UseSwaggerUI();
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
+app.UseCors();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseAuthorization();

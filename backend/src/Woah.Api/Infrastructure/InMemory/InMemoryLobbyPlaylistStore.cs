@@ -22,10 +22,16 @@ public class InMemoryLobbyPlaylistStore : ILobbyPlaylistStore
     {
         var bucket = _store.GetOrAdd(lobbyCode, _ => new ConcurrentDictionary<long, LobbyDraftTrack>());
 
-        if (bucket.Count >= MaxTracks)
+        if (!bucket.TryAdd(track.TrackId, track))
             return false;
 
-        return bucket.TryAdd(track.TrackId, track);
+        if (bucket.Count > MaxTracks)
+        {
+            bucket.TryRemove(track.TrackId, out _);
+            return false;
+        }
+
+        return true;
     }
 
     public bool RemoveTrack(string lobbyCode, long trackId)

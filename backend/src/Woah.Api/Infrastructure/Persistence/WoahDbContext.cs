@@ -16,58 +16,62 @@ public class WoahDbContext : DbContext
     public DbSet<RoundEntity> Rounds => Set<RoundEntity>();
     public DbSet<RoundCorrectAnswerEntity> RoundCorrectAnswers => Set<RoundCorrectAnswerEntity>();
 
-protected override void OnModelCreating(ModelBuilder modelBuilder)
-{
-    base.OnModelCreating(modelBuilder);
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
 
-    modelBuilder.Entity<PlayerEntity>()
-        .HasKey(p => p.PlayerId);
+        modelBuilder.Entity<PlayerEntity>()
+            .HasKey(p => p.PlayerId);
 
-    modelBuilder.Entity<LobbyEntity>()
-        .HasKey(l => l.LobbyId);
+        modelBuilder.Entity<LobbyEntity>()
+            .HasKey(l => l.LobbyId);
 
-    modelBuilder.Entity<LobbyEntity>()
-        .HasOne(l => l.HostPlayer)
-        .WithMany()
-        .HasForeignKey(l => l.HostPlayerId)
-        .OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<LobbyEntity>()
+            .HasIndex(l => l.Code)
+            .IsUnique();
 
-    modelBuilder.Entity<LobbyPlayerEntity>()
-        .HasKey(lp => new { lp.LobbyId, lp.PlayerId });
+        modelBuilder.Entity<LobbyEntity>()
+            .HasOne(l => l.HostPlayer)
+            .WithMany()
+            .HasForeignKey(l => l.HostPlayerId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-    modelBuilder.Entity<LobbyPlayerEntity>()
-        .HasIndex(lp => new { lp.LobbyId, lp.Nick })
-        .IsUnique();
+        modelBuilder.Entity<LobbyPlayerEntity>()
+            .HasKey(lp => new { lp.LobbyId, lp.PlayerId });
 
-    modelBuilder.Entity<LobbyPlayerEntity>()
-        .HasOne(lp => lp.Lobby)
-        .WithMany(l => l.LobbyPlayers)
-        .HasForeignKey(lp => lp.LobbyId)
-        .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<LobbyPlayerEntity>()
+            .HasIndex(lp => new { lp.LobbyId, lp.Nick })
+            .IsUnique();
 
-    modelBuilder.Entity<LobbyPlayerEntity>()
-        .HasOne(lp => lp.Player)
-        .WithMany(p => p.LobbyMemberships)
-        .HasForeignKey(lp => lp.PlayerId)
-        .OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<LobbyPlayerEntity>()
+            .HasOne(lp => lp.Lobby)
+            .WithMany(l => l.LobbyPlayers)
+            .HasForeignKey(lp => lp.LobbyId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-    modelBuilder.Entity<PlaylistEntity>()
-        .HasKey(pl => pl.PlaylistId);
+        modelBuilder.Entity<LobbyPlayerEntity>()
+            .HasOne(lp => lp.Player)
+            .WithMany(p => p.LobbyMemberships)
+            .HasForeignKey(lp => lp.PlayerId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-    modelBuilder.Entity<PlaylistTrackEntity>()
-        .HasKey(pt => new { pt.PlaylistId, pt.ItemNumber });
+        modelBuilder.Entity<PlaylistEntity>()
+            .HasKey(pl => pl.PlaylistId);
 
-    modelBuilder.Entity<GameSessionEntity>()
-        .HasKey(gs => gs.SessionId);
+        modelBuilder.Entity<PlaylistTrackEntity>()
+            .HasKey(pt => new { pt.PlaylistId, pt.ItemNumber });
 
-    modelBuilder.Entity<RoundEntity>()
-        .HasKey(r => r.RoundId);
+        modelBuilder.Entity<GameSessionEntity>()
+            .HasKey(gs => gs.SessionId);
 
-    modelBuilder.Entity<RoundEntity>()
-        .HasIndex(r => new { r.SessionId, r.RoundNo })
-        .IsUnique();
+        modelBuilder.Entity<RoundEntity>()
+            .HasKey(r => r.RoundId);
 
-    modelBuilder.Entity<RoundCorrectAnswerEntity>()
-        .HasKey(rca => new { rca.RoundId, rca.PlayerId });
-}
+        modelBuilder.Entity<RoundEntity>()
+            .HasIndex(r => new { r.SessionId, r.RoundNo })
+            .IsUnique();
+
+        modelBuilder.Entity<RoundCorrectAnswerEntity>()
+            .HasKey(rca => new { rca.RoundId, rca.PlayerId });
+    }
 }

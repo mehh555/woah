@@ -21,7 +21,7 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         {
             NotFoundException ex => (StatusCodes.Status404NotFound, ex.Message),
             ForbiddenException ex => (StatusCodes.Status403Forbidden, ex.Message),
-            InvalidOperationException ex => (StatusCodes.Status400BadRequest, ex.Message),
+            BadRequestException ex => (StatusCodes.Status400BadRequest, ex.Message),
             _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred.")
         };
 

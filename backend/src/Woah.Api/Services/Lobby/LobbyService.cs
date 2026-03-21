@@ -80,15 +80,15 @@ public class LobbyService : ILobbyService
         var lobby = await GetLobbyWithPlayersAsync(lobbyCode.NormalizeCode(), ct);
 
         if (lobby.Status != LobbyStatus.Waiting)
-            throw new InvalidOperationException("Lobby is not accepting new players.");
+            throw new BadRequestException("Lobby is not accepting new players.");
 
         var active = lobby.ActivePlayers();
 
         if (active.Count >= lobby.MaxPlayers)
-            throw new InvalidOperationException("Lobby is full.");
+            throw new BadRequestException("Lobby is full.");
 
         if (active.Any(x => string.Equals(x.Nick, nick, StringComparison.OrdinalIgnoreCase)))
-            throw new InvalidOperationException("Nick is already taken in this lobby.");
+            throw new BadRequestException("Nick is already taken in this lobby.");
 
         var player = new PlayerEntity { PlayerId = Guid.NewGuid(), Nick = nick, CreatedAt = now };
         var membership = new LobbyPlayerEntity
@@ -149,53 +149,15 @@ public class LobbyService : ILobbyService
         var lobby = await GetLobbyWithPlayersAsync(lobbyCode.NormalizeCode(), ct);
 
         if (lobby.Status != LobbyStatus.Waiting)
-            throw new InvalidOperationException("Players can leave only while lobby is waiting.");
+            throw new BadRequestException("Players can leave only while lobby is waiting.");
 
         var membership = (lobby.LobbyPlayers ?? new List<LobbyPlayerEntity>())
             .FirstOrDefault(x => x.PlayerId == request.PlayerId && x.LeftAt == null)
-            ?? throw new InvalidOperationException("Active player membership not found in this lobby.");
+            ?? throw new BadRequestException("Active player membership not found in this lobby.");
 
         var wasHost = lobby.HostPlayerId == request.PlayerId;
 
         if (wasHost)
         {
             foreach (var m in (lobby.LobbyPlayers ?? new List<LobbyPlayerEntity>()).Where(x => x.LeftAt == null))
-                m.LeftAt = now;
-
-            lobby.Status = LobbyStatus.Finished;
-        }
-        else
-        {
-            membership.LeftAt = now;
-        }
-
-        await _dbContext.SaveChangesAsync(ct);
-
-        return new LeaveLobbyResponse
-        {
-            LobbyId = lobby.LobbyId,
-            LobbyCode = lobby.Code,
-            PlayerId = request.PlayerId,
-            WasHost = wasHost,
-            LobbyStatus = lobby.Status
-        };
-    }
-
-    private async Task<LobbyEntity> GetLobbyWithPlayersAsync(string normalizedCode, CancellationToken ct) =>
-        await _dbContext.Lobbies
-            .Include(x => x.LobbyPlayers)
-            .FirstOrDefaultAsync(x => x.Code == normalizedCode, ct)
-        ?? throw new NotFoundException("Lobby not found.");
-
-    private async Task<string> GenerateUniqueCodeAsync(CancellationToken ct)
-    {
-        for (var attempt = 0; attempt < 10; attempt++)
-        {
-            var code = _codeGenerator.Generate();
-            var exists = await _dbContext.Lobbies.AnyAsync(x => x.Code == code, ct);
-            if (!exists) return code;
-        }
-
-        throw new InvalidOperationException("Could not generate a unique lobby code.");
-    }
-}
+                m
