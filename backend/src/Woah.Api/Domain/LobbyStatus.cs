@@ -1,8 +1,8 @@
 ﻿namespace Woah.Api.Domain;
 
-public static class LobbyStatus
+public enum LobbyStatus
 {
-    public const string Waiting = "Waiting";
-    public const string InGame = "InGame";
-    public const string Finished = "Finished";
+    Waiting,
+    InGame,
+    Finished
 }

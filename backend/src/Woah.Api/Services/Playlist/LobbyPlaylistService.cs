@@ -100,7 +100,7 @@ public class LobbyPlaylistService : ILobbyPlaylistService
         if (lobby.HostPlayerId != hostPlayerId)
             throw new ForbiddenException("Only the host can modify the lobby playlist.");
 
-        if (!(lobby.LobbyPlayers ?? new List<LobbyPlayerEntity>()).Any(x => x.PlayerId == hostPlayerId && x.LeftAt == null))
+        if (!lobby.LobbyPlayers.Any(x => x.PlayerId == hostPlayerId && x.LeftAt == null))
             throw new BadRequestException("Host is not active in this lobby.");
 
         return lobby;

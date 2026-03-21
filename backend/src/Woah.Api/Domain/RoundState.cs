@@ -1,9 +1,9 @@
 ﻿namespace Woah.Api.Domain;
 
-public static class RoundState
+public enum RoundState
 {
-    public const string Pending = "Pending";
-    public const string Playing = "Playing";
-    public const string Revealed = "Revealed";
-    public const string Finished = "Finished";
+    Pending,
+    Playing,
+    Revealed,
+    Finished
 }

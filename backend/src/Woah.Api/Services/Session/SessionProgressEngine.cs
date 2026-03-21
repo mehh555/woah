@@ -65,7 +65,7 @@ public class SessionProgressEngine : ISessionProgressEngine
     }
 
     public static List<RoundEntity> OrderedRounds(GameSessionEntity session) =>
-        (session.Rounds ?? new List<RoundEntity>())
+        session.Rounds
             .OrderBy(x => x.RoundNo)
             .ToList();
 }

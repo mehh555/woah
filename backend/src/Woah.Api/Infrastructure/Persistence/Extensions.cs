@@ -8,7 +8,7 @@ internal static class Extensions
         => lobbyCode.Trim().ToUpperInvariant();
 
     public static List<LobbyPlayerEntity> ActivePlayers(this LobbyEntity lobby)
-        => (lobby.LobbyPlayers ?? new List<LobbyPlayerEntity>())
+        => lobby.LobbyPlayers
             .Where(x => x.LeftAt == null)
             .OrderBy(x => x.JoinedAt)
             .ToList();

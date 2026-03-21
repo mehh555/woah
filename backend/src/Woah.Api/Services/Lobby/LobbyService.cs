@@ -133,7 +133,7 @@ public class LobbyService : ILobbyService
         {
             LobbyId = lobby.LobbyId,
             Code = lobby.Code,
-            Status = lobby.Status,
+            Status = lobby.Status.ToString(),
             MaxPlayers = lobby.MaxPlayers,
             HostPlayerId = lobby.HostPlayerId,
             PlayerCount = active.Count,
@@ -156,7 +156,7 @@ public class LobbyService : ILobbyService
         if (lobby.Status != LobbyStatus.Waiting)
             throw new BadRequestException("Players can leave only while lobby is waiting.");
 
-        var membership = (lobby.LobbyPlayers ?? new List<LobbyPlayerEntity>())
+        var membership = lobby.LobbyPlayers
             .FirstOrDefault(x => x.PlayerId == request.PlayerId && x.LeftAt == null)
             ?? throw new BadRequestException("Active player membership not found in this lobby.");
 
@@ -164,7 +164,7 @@ public class LobbyService : ILobbyService
 
         if (wasHost)
         {
-            foreach (var m in (lobby.LobbyPlayers ?? new List<LobbyPlayerEntity>()).Where(x => x.LeftAt == null))
+            foreach (var m in lobby.LobbyPlayers.Where(x => x.LeftAt == null))
                 m.LeftAt = now;
 
             lobby.Status = LobbyStatus.Finished;
@@ -184,7 +184,7 @@ public class LobbyService : ILobbyService
             LobbyCode = lobby.Code,
             PlayerId = request.PlayerId,
             WasHost = wasHost,
-            LobbyStatus = lobby.Status
+            LobbyStatus = lobby.Status.ToString()
         };
     }
 

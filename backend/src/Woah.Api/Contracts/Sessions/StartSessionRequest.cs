@@ -1,8 +1,9 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System;
+using System.ComponentModel.DataAnnotations;
 
 namespace Woah.Api.Contracts.Sessions;
 
-public class StartSessionRequest
+public class StartSessionRequest : IValidatableObject
 {
     [Required]
     public Guid HostPlayerId { get; set; }
@@ -12,4 +13,13 @@ public class StartSessionRequest
 
     [Range(5, 15)]
     public int RoundDurationSeconds { get; set; } = 10;
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (HostPlayerId == Guid.Empty)
+            yield return new ValidationResult("HostPlayerId must not be empty.", new[] { nameof(HostPlayerId) });
+
+        if (PlaylistId == Guid.Empty)
+            yield return new ValidationResult("PlaylistId must not be empty.", new[] { nameof(PlaylistId) });
+    }
 }

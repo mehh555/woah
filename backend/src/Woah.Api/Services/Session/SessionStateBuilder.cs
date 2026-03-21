@@ -28,7 +28,7 @@ public class SessionStateBuilder : ISessionStateBuilder
         {
             SessionId = session.SessionId,
             LobbyId = session.LobbyId,
-            LobbyStatus = lobby.Status,
+            LobbyStatus = lobby.Status.ToString(),
             StartedAt = session.StartedAt,
             EndedAt = session.EndedAt,
             IsFinished = session.EndedAt is not null,
@@ -42,7 +42,7 @@ public class SessionStateBuilder : ISessionStateBuilder
 
     private static SessionRoundResponse MapRound(RoundEntity round)
     {
-        var correctIds = (round.CorrectAnswers ?? new List<RoundCorrectAnswerEntity>())
+        var correctIds = round.CorrectAnswers
             .Select(x => x.PlayerId)
             .ToList();
 
@@ -50,7 +50,7 @@ public class SessionStateBuilder : ISessionStateBuilder
         {
             RoundId = round.RoundId,
             RoundNo = round.RoundNo,
-            State = round.State,
+            State = round.State.ToString(),
             PreviewUrl = round.PreviewUrl,
             StartedAt = round.StartedAt,
             EndsAt = round.EndsAt,
@@ -72,7 +72,7 @@ public class SessionStateBuilder : ISessionStateBuilder
             .Select(p =>
             {
                 var answers = rounds
-                    .SelectMany(r => r.CorrectAnswers ?? new List<RoundCorrectAnswerEntity>())
+                    .SelectMany(r => r.CorrectAnswers)
                     .Where(a => a.PlayerId == p.PlayerId)
                     .ToList();
 

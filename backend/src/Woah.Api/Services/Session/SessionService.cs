@@ -81,8 +81,8 @@ public class SessionService : ISessionService
                 PlaylistId = playlist.PlaylistId,
                 HostPlayerId = request.HostPlayerId,
                 StartedAt = session.StartedAt,
-                LobbyStatus = lobby.Status,
-                RoundCount = session.Rounds!.Count
+                LobbyStatus = lobby.Status.ToString(),
+                RoundCount = session.Rounds.Count
             };
         }
         catch
@@ -126,7 +126,7 @@ public class SessionService : ISessionService
             return Reject("Round has already ended.");
         }
 
-        if ((round.CorrectAnswers ?? new List<RoundCorrectAnswerEntity>()).Any(x => x.PlayerId == request.PlayerId))
+        if (round.CorrectAnswers.Any(x => x.PlayerId == request.PlayerId))
             return AlreadyAnswered();
 
         if (!string.Equals(_normalizer.Normalize(request.Answer), round.AnswerNorm, StringComparison.Ordinal))

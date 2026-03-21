@@ -26,7 +26,6 @@ public class LobbyPlaylistController : ControllerBase
     [HttpDelete("tracks/{trackId:long}")]
     public async Task<ActionResult<GetLobbyPlaylistResponse>> RemoveTrack(
         [FromRoute] string lobbyCode, [FromRoute] long trackId,
-        [FromQuery] Guid hostPlayerId, CancellationToken ct)
-        => Ok(await _lobbyPlaylistService.RemoveTrackAsync(
-            lobbyCode, trackId, new RemoveLobbyTrackRequest { HostPlayerId = hostPlayerId }, ct));
+        [FromBody] RemoveLobbyTrackRequest request, CancellationToken ct)
+        => Ok(await _lobbyPlaylistService.RemoveTrackAsync(lobbyCode, trackId, request, ct));
 }
