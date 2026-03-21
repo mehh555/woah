@@ -46,6 +46,7 @@ builder.Services.AddSingleton<ILobbyCodeGenerator, LobbyCodeGenerator>();
 builder.Services.AddSingleton<ILobbyPlaylistStore, InMemoryLobbyPlaylistStore>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
 builder.Services.AddHttpClient<ItunesApiClient>(client =>
 {
     client.BaseAddress = new Uri("https://itunes.apple.com/");
@@ -57,18 +58,41 @@ builder.Services.AddHealthChecks()
     .AddDbContextCheck<WoahDbContext>("db", tags: new[] { "ready" });
 
 var app = builder.Build();
+
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseExceptionHandler();
-app.UseHttpsRedirection();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseCors();
-app.UseDefaultFiles();
-app.UseStaticFiles();
 app.UseAuthorization();
+
 app.MapControllers();
 app.MapHub<GameHub>("/hubs/game");
 
-app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = c => c.Tags.Contains("live") });
-app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = c => c.Tags.Contains("ready") });
+var webRootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+var hasBuiltFrontend = Directory.Exists(webRootPath) &&
+                       Directory.EnumerateFiles(webRootPath, "*", SearchOption.AllDirectories).Any();
+
+if (hasBuiltFrontend)
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+    app.MapFallbackToFile("index.html");
+}
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = c => c.Tags.Contains("live")
+});
+
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = c => c.Tags.Contains("ready")
+});
 
 app.Run();
