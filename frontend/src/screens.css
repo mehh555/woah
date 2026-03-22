@@ -412,6 +412,26 @@
     padding: 2rem 1rem;
 }
 
+.mask-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.mask-label {
+    font-size: .7rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .15em;
+}
+
+.mask-divider {
+    color: var(--border);
+    font-size: 1.2rem;
+    margin: .3rem 0;
+}
+
 .word-mask {
     display: flex;
     flex-wrap: wrap;

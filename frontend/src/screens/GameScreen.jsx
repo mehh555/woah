@@ -6,18 +6,21 @@ import { useGameHub } from "../hooks/useGameHub.js";
 import Timer from "../components/Timer.jsx";
 import RoundSummaryModal from "../components/RoundSummaryModal.jsx";
 
-function MaskedWord({ mask }) {
+function MaskedWord({ mask, label }) {
     if (!mask) return null;
     const chars = [...mask];
     return (
-        <div className="word-mask">
-            {chars.map((ch, i) =>
-                ch === " " ? (
-                    <span key={i} className="mask-space" />
-                ) : (
-                    <span key={i} className="mask-char">_</span>
-                )
-            )}
+        <div className="mask-group">
+            <div className="mask-label">{label}</div>
+            <div className="word-mask">
+                {chars.map((ch, i) =>
+                    ch === " " ? (
+                        <span key={i} className="mask-space" />
+                    ) : (
+                        <span key={i} className="mask-char">_</span>
+                    )
+                )}
+            </div>
         </div>
     );
 }
@@ -126,7 +129,6 @@ export default function GameScreen() {
         <div className="game-screen">
             <audio ref={audioRef} />
 
-            {/* Round summary modal */}
             {(isRoundRevealed || isFinished) && (
                 <RoundSummaryModal
                     round={currentRound}
@@ -136,7 +138,6 @@ export default function GameScreen() {
                 />
             )}
 
-            {/* Playing UI */}
             <div className="game-top">
                 <div className="round-badge">
                     Runda {currentRound?.roundNo ?? "?"} / {totalRounds}
@@ -147,7 +148,9 @@ export default function GameScreen() {
                 )}
 
                 <div className="game-mask-area">
-                    <MaskedWord mask={currentRound?.answerMask} />
+                    <MaskedWord mask={currentRound?.answerArtistMask} label="Artysta" />
+                    <div className="mask-divider">—</div>
+                    <MaskedWord mask={currentRound?.answerTitleMask} label="Tytuł" />
                 </div>
 
                 {!myGuessed && isRoundPlaying && (
@@ -155,7 +158,7 @@ export default function GameScreen() {
                         <input
                             ref={inputRef}
                             className="input"
-                            placeholder="Wpisz nazwę piosenki…"
+                            placeholder="Wpisz tytuł, artystę lub oba…"
                             value={guess}
                             onChange={e => setGuess(e.target.value)}
                             onKeyDown={e => e.key === "Enter" && handleGuess()}
@@ -176,7 +179,6 @@ export default function GameScreen() {
                 )}
             </div>
 
-            {/* Leaderboard table — always visible at bottom */}
             <div className="game-leaderboard">
                 <table className="leaderboard-table">
                     <thead>
