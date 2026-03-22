@@ -248,3 +248,10 @@ body {
 .anim-fadeDown {
     animation: fadeDown .6s ease both;
 }
+
+.word-revealed {
+    font-weight: 700;
+    color: var(--success, #4ade80);
+    font-size: 1.1rem;
+    letter-spacing: 0.02em;
+}

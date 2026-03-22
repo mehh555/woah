@@ -67,3 +67,7 @@ export function submitAnswer(sessionId, playerId, answer) {
 export function advanceSession(sessionId, hostPlayerId) {
     return request("POST", `/sessions/${sessionId}/advance`, { hostPlayerId });
 }
+
+export function returnToLobby(sessionId, hostPlayerId) {
+    return request("POST", `/sessions/${sessionId}/return-to-lobby`, { hostPlayerId });
+}

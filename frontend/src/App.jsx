@@ -104,7 +104,12 @@ function AppInner() {
                     onExit={() => setPhase("start")}
                 />
             )}
-            {phase === "game" && <GameScreen onExit={() => setPhase("start")} />}
+            {phase === "game" && (
+                <GameScreen
+                    onExit={() => setPhase("start")}
+                    onReturnToLobby={() => setPhase("lobby")}
+                />
+            )}
         </div>
     );
 }

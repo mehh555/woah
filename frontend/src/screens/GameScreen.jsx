@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getSession, submitAnswer, advanceSession } from "../api/client.js";
+import { getSession, submitAnswer, advanceSession, returnToLobby } from "../api/client.js";
 import { useSession } from "../context/SessionContext.jsx";
 import { usePolling } from "../hooks/usePolling.js";
 import { useGameHub } from "../hooks/useGameHub.js";
 import Timer from "../components/Timer.jsx";
 import RoundSummaryModal from "../components/RoundSummaryModal.jsx";
 
-function MaskedWord({ mask, label }) {
+function MaskedWord({ mask, guessed, label }) {
     if (!mask) return null;
+    if (guessed) {
+        return (
+            <div className="mask-group">
+                <div className="mask-label">{label}</div>
+                <div className="word-revealed">✓ Zgadnięto!</div>
+            </div>
+        );
+    }
     const chars = [...mask];
     return (
         <div className="mask-group">
@@ -23,8 +31,8 @@ function MaskedWord({ mask, label }) {
     );
 }
 
-export default function GameScreen({ onExit }) {
-    const { session, clearSession } = useSession();
+export default function GameScreen({ onExit, onReturnToLobby }) {
+    const { session, setSession, clearSession } = useSession();
     const [guess, setGuess] = useState("");
     const [feedback, setFeedback] = useState(null);
     const [myTitleGuessed, setMyTitleGuessed] = useState(false);
@@ -39,7 +47,16 @@ export default function GameScreen({ onExit }) {
     const { invoke, connected } = useGameHub({
         SessionUpdated: () => refetch(),
         PlayerAnsweredCorrectly: () => refetch(),
-    }, [refetch]);
+        ReturnToLobby: ({ lobbyCode, playlistId }) => {
+            setSession(prev => ({
+                ...prev,
+                sessionId: null,
+                lobbyCode: lobbyCode,
+                playlistId: prev.isHost ? playlistId : prev.playlistId,
+            }));
+            onReturnToLobby();
+        },
+    }, [refetch, setSession, onReturnToLobby]);
 
     useEffect(() => {
         if (connected && session.sessionId) {
@@ -58,6 +75,20 @@ export default function GameScreen({ onExit }) {
         }
         prevRoundRef.current = roundId;
     }, [gameState?.currentRound?.roundId]);
+
+    // sync guessed state from server (e.g. after page refresh)
+    useEffect(() => {
+        if (!gameState?.currentRound) return;
+        const round = gameState.currentRound;
+        if (round.correctTitlePlayerIds?.includes(session.playerId) && !myTitleGuessed) {
+            setMyTitleGuessed(true);
+            // title is only revealed to player after guessing — but we don't have it from API during Playing
+            // so we keep the "guessed" flag without text until round is Revealed
+        }
+        if (round.correctArtistPlayerIds?.includes(session.playerId) && !myArtistGuessed) {
+            setMyArtistGuessed(true);
+        }
+    }, [gameState?.currentRound, session.playerId]);
 
     useEffect(() => {
         if (!gameState?.currentRound?.previewUrl || !audioRef.current) return;
@@ -84,11 +115,18 @@ export default function GameScreen({ onExit }) {
         if (myTitleGuessed && myArtistGuessed) return;
         try {
             const res = await submitAnswer(session.sessionId, session.playerId, guess.trim());
+
             if (res.alreadyAnswered) {
                 setFeedback({ type: "info", msg: "✅ Już odpowiedziano poprawnie." });
-            } else if (res.isCorrect) {
-                setFeedback({ type: "correct", msg: `🎉 Poprawna odpowiedź! +${res.pointsAwarded} pkt!` });
+            } else if (res.titleCorrect && res.artistCorrect) {
+                setFeedback({ type: "correct", msg: `🎉 Tytuł i artysta! +${res.pointsAwarded} pkt!` });
                 setMyTitleGuessed(true);
+                setMyArtistGuessed(true);
+            } else if (res.titleCorrect) {
+                setFeedback({ type: "correct", msg: `🎵 Tytuł trafiony! +${res.pointsAwarded} pkt!` });
+                setMyTitleGuessed(true);
+            } else if (res.artistCorrect) {
+                setFeedback({ type: "correct", msg: `🎤 Artysta trafiony! +${res.pointsAwarded} pkt!` });
                 setMyArtistGuessed(true);
             } else if (res.accepted) {
                 setFeedback({ type: "wrong", msg: "❌ Nie tym razem..." });
@@ -117,6 +155,14 @@ export default function GameScreen({ onExit }) {
     function handleBackToMenu() {
         clearSession();
         onExit();
+    }
+
+    async function handleReturnToLobby() {
+        try {
+            await returnToLobby(session.sessionId, session.playerId);
+        } catch (e) {
+            alert("Błąd: " + e.message);
+        }
     }
 
     if (!session?.sessionId) {
@@ -176,9 +222,16 @@ export default function GameScreen({ onExit }) {
                         </table>
                     </div>
 
-                    <button className="btn btn-primary" onClick={handleBackToMenu}>
-                        ← Wróć do menu
-                    </button>
+                    <div className="finish-actions">
+                        {session.isHost && (
+                            <button className="btn btn-primary" onClick={handleReturnToLobby}>
+                                🔄 Powrót do lobby
+                            </button>
+                        )}
+                        <button className="btn btn-secondary" onClick={handleBackToMenu}>
+                            ← Wróć do menu
+                        </button>
+                    </div>
                 </div>
             </div>
         );
@@ -211,8 +264,16 @@ export default function GameScreen({ onExit }) {
                 )}
 
                 <div className="game-mask-area">
-                    <MaskedWord mask={currentRound?.answerTitleMask} label="Tytuł" />
-                    <MaskedWord mask={currentRound?.answerArtistMask} label="Artysta" />
+                    <MaskedWord
+                        mask={currentRound?.answerTitleMask}
+                        guessed={myTitleGuessed}
+                        label="Tytuł"
+                    />
+                    <MaskedWord
+                        mask={currentRound?.answerArtistMask}
+                        guessed={myArtistGuessed}
+                        label="Artysta"
+                    />
                 </div>
 
                 <div className="guess-status">
@@ -227,7 +288,11 @@ export default function GameScreen({ onExit }) {
                         <input
                             ref={inputRef}
                             className="input"
-                            placeholder="Wpisz tytuł lub artystę…"
+                            placeholder={
+                                myTitleGuessed ? "Wpisz artystę…" :
+                                    myArtistGuessed ? "Wpisz tytuł…" :
+                                        "Wpisz tytuł lub artystę…"
+                            }
                             value={guess}
                             onChange={e => setGuess(e.target.value)}
                             onKeyDown={e => e.key === "Enter" && handleGuess()}

@@ -26,8 +26,12 @@ export default function RoundSummaryModal({ round, leaderboard, isHost, onNext }
 
                 <div className="modal-stats">
                     <div className="modal-stat">
-                        <span className="modal-stat-value">{round.correctAnswerCount ?? 0}</span>
-                        <span className="modal-stat-label">trafionych odpowiedzi</span>
+                        <span className="modal-stat-value">{round.correctTitlePlayerIds?.length ?? 0}</span>
+                        <span className="modal-stat-label">trafiło tytuł</span>
+                    </div>
+                    <div className="modal-stat">
+                        <span className="modal-stat-value">{round.correctArtistPlayerIds?.length ?? 0}</span>
+                        <span className="modal-stat-label">trafiło artystę</span>
                     </div>
                 </div>
 
@@ -42,13 +46,15 @@ export default function RoundSummaryModal({ round, leaderboard, isHost, onNext }
                         </thead>
                         <tbody>
                             {leaderboard.map((p, i) => {
-                                const gotCorrect = round.correctPlayerIds?.includes(p.playerId);
+                                const gotTitle = round.correctTitlePlayerIds?.includes(p.playerId);
+                                const gotArtist = round.correctArtistPlayerIds?.includes(p.playerId);
                                 return (
-                                    <tr key={p.playerId} className={gotCorrect ? "row-correct" : ""}>
+                                    <tr key={p.playerId} className={gotTitle || gotArtist ? "row-correct" : ""}>
                                         <td className="rank">{i + 1}</td>
                                         <td className="nick">
                                             {p.nick}
-                                            {gotCorrect && <span className="mini-badge title-badge">trafiono</span>}
+                                            {gotTitle && <span className="mini-badge title-badge">tytuł</span>}
+                                            {gotArtist && <span className="mini-badge artist-badge">artysta</span>}
                                         </td>
                                         <td className="score">{p.score}</td>
                                     </tr>
