@@ -84,18 +84,17 @@ export default function GameScreen({ onExit }) {
         if (myTitleGuessed && myArtistGuessed) return;
         try {
             const res = await submitAnswer(session.sessionId, session.playerId, guess.trim());
-            if (res.titleCorrect && res.artistCorrect) {
-                setFeedback({ type: "correct", msg: `🎉 Tytuł i artysta! +${res.pointsAwarded} pkt!` });
+            if (res.alreadyAnswered) {
+                setFeedback({ type: "info", msg: "✅ Już odpowiedziano poprawnie." });
+            } else if (res.isCorrect) {
+                setFeedback({ type: "correct", msg: `🎉 Poprawna odpowiedź! +${res.pointsAwarded} pkt!` });
                 setMyTitleGuessed(true);
                 setMyArtistGuessed(true);
-            } else if (res.titleCorrect) {
-                setFeedback({ type: "correct", msg: `🎵 Tytuł trafiony! +${res.pointsAwarded} pkt!` });
-                setMyTitleGuessed(true);
-            } else if (res.artistCorrect) {
-                setFeedback({ type: "correct", msg: `🎤 Artysta trafiony! +${res.pointsAwarded} pkt!` });
-                setMyArtistGuessed(true);
-            } else {
+            } else if (res.accepted) {
                 setFeedback({ type: "wrong", msg: "❌ Nie tym razem..." });
+                setTimeout(() => setFeedback(null), 2000);
+            } else {
+                setFeedback({ type: "wrong", msg: `⚠️ ${res.message}` });
                 setTimeout(() => setFeedback(null), 2000);
             }
             refetch();
@@ -212,8 +211,8 @@ export default function GameScreen({ onExit }) {
                 )}
 
                 <div className="game-mask-area">
-                    <MaskedWord mask={currentRound?.titleMask} label="Tytuł" />
-                    <MaskedWord mask={currentRound?.artistMask} label="Artysta" />
+                    <MaskedWord mask={currentRound?.answerTitleMask} label="Tytuł" />
+                    <MaskedWord mask={currentRound?.answerArtistMask} label="Artysta" />
                 </div>
 
                 <div className="guess-status">

@@ -26,12 +26,8 @@ export default function RoundSummaryModal({ round, leaderboard, isHost, onNext }
 
                 <div className="modal-stats">
                     <div className="modal-stat">
-                        <span className="modal-stat-value">{round.correctTitlePlayerIds?.length ?? 0}</span>
-                        <span className="modal-stat-label">trafiło tytuł</span>
-                    </div>
-                    <div className="modal-stat">
-                        <span className="modal-stat-value">{round.correctArtistPlayerIds?.length ?? 0}</span>
-                        <span className="modal-stat-label">trafiło artystę</span>
+                        <span className="modal-stat-value">{round.correctAnswerCount ?? 0}</span>
+                        <span className="modal-stat-label">trafionych odpowiedzi</span>
                     </div>
                 </div>
 
@@ -46,15 +42,13 @@ export default function RoundSummaryModal({ round, leaderboard, isHost, onNext }
                         </thead>
                         <tbody>
                             {leaderboard.map((p, i) => {
-                                const gotTitle = round.correctTitlePlayerIds?.includes(p.playerId);
-                                const gotArtist = round.correctArtistPlayerIds?.includes(p.playerId);
+                                const gotCorrect = round.correctPlayerIds?.includes(p.playerId);
                                 return (
-                                    <tr key={p.playerId} className={gotTitle || gotArtist ? "row-correct" : ""}>
+                                    <tr key={p.playerId} className={gotCorrect ? "row-correct" : ""}>
                                         <td className="rank">{i + 1}</td>
                                         <td className="nick">
                                             {p.nick}
-                                            {gotTitle && <span className="mini-badge title-badge">tytuł</span>}
-                                            {gotArtist && <span className="mini-badge artist-badge">artysta</span>}
+                                            {gotCorrect && <span className="mini-badge title-badge">trafiono</span>}
                                         </td>
                                         <td className="score">{p.score}</td>
                                     </tr>

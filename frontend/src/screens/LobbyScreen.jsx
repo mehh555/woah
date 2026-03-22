@@ -134,16 +134,15 @@ export default function LobbyScreen({ onStart, onExit }) {
                 <PlaylistPanel lobbyCode={session.lobbyCode} hostPlayerId={session.playerId} />
             )}
 
-            <div style={{ display: "flex", gap: "1rem", width: "100%", maxWidth: 320, flexDirection: "column" }}>
+            <div className="lobby-actions">
                 {amIHost ? (
                     <>
-                        <div style={{ display: "flex", alignItems: "center", gap: ".75rem", justifyContent: "center" }}>
-                            <label style={{ color: "var(--muted)", fontSize: ".85rem", whiteSpace: "nowrap" }}>Czas rundy:</label>
+                        <div className="round-duration-picker">
+                            <label className="round-duration-label">Czas rundy:</label>
                             <select
-                                className="input"
+                                className="input round-duration-select"
                                 value={roundDuration}
                                 onChange={e => setRoundDuration(Number(e.target.value))}
-                                style={{ width: "auto", textAlign: "center" }}
                             >
                                 {[5, 7, 10, 12, 15].map(s => (
                                     <option key={s} value={s}>{s}s</option>

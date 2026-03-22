@@ -3,7 +3,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 export function usePolling(fetchFn, interval = 1500) {
     const [data, setData] = useState(null);
     const [error, setError] = useState(null);
-    const [loading, setLoading] = useState(true);
     const fnRef = useRef(fetchFn);
     fnRef.current = fetchFn;
 
@@ -26,7 +25,7 @@ export function usePolling(fetchFn, interval = 1500) {
             } catch (e) {
                 if (!cancelled) setError(e.message);
             } finally {
-                if (!cancelled) setLoading(false);
+                //noop
             }
         }
         run();
@@ -35,7 +34,7 @@ export function usePolling(fetchFn, interval = 1500) {
             return () => { cancelled = true; clearInterval(id); };
         }
         return () => { cancelled = true; };
-    }, [interval]);
+    }, [interval, fetchFn]);
 
-    return { data, error, loading, refetch };
+    return { data, error, refetch };
 }
