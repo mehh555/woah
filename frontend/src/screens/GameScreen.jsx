@@ -100,6 +100,22 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
         }
     }, [gameState?.currentRound?.previewUrl, gameState?.currentRound?.state]);
 
+    // Auto-refetch when round timer expires (triggers server-side auto-reveal)
+    useEffect(() => {
+        if (!gameState?.currentRound?.endsAt) return;
+        if (gameState.currentRound.state !== "Playing") return;
+
+        const msUntilEnd = new Date(gameState.currentRound.endsAt).getTime() - Date.now() + 500;
+
+        if (msUntilEnd <= 0) {
+            refetch();
+            return;
+        }
+
+        const timeout = setTimeout(() => refetch(), msUntilEnd);
+        return () => clearTimeout(timeout);
+    }, [gameState?.currentRound?.endsAt, gameState?.currentRound?.state, refetch]);
+
     useEffect(() => {
         if (!gameState?.leaderboard) return;
         const iAmParticipant = gameState.leaderboard.some(p => p.playerId === session.playerId);
