@@ -15,17 +15,20 @@ public class LobbyPlaylistService : ILobbyPlaylistService
     private readonly WoahDbContext _dbContext;
     private readonly ItunesApiClient _itunesClient;
     private readonly IGameNotifier _notifier;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<LobbyPlaylistService> _logger;
 
     public LobbyPlaylistService(
         WoahDbContext dbContext,
         ItunesApiClient itunesClient,
         IGameNotifier notifier,
+        TimeProvider timeProvider,
         ILogger<LobbyPlaylistService> logger)
     {
         _dbContext = dbContext;
         _itunesClient = itunesClient;
         _notifier = notifier;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -79,7 +82,8 @@ public class LobbyPlaylistService : ILobbyPlaylistService
             throw new BadRequestException("Track not found in iTunes or preview is unavailable.");
         }
 
-        var entity = LobbyTrackMapper.ToEntity(itunesTrack, playlist.PlaylistId);
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var entity = LobbyTrackMapper.ToEntity(itunesTrack, playlist.PlaylistId, now);
         _dbContext.PlaylistTracks.Add(entity);
 
         try

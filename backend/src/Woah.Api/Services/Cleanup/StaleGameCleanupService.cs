@@ -11,11 +11,16 @@ public class StaleGameCleanupService : BackgroundService
     private static readonly TimeSpan StaleSessionThreshold = TimeSpan.FromMinutes(15);
 
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<StaleGameCleanupService> _logger;
 
-    public StaleGameCleanupService(IServiceScopeFactory scopeFactory, ILogger<StaleGameCleanupService> logger)
+    public StaleGameCleanupService(
+        IServiceScopeFactory scopeFactory,
+        TimeProvider timeProvider,
+        ILogger<StaleGameCleanupService> logger)
     {
         _scopeFactory = scopeFactory;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -58,7 +63,8 @@ public class StaleGameCleanupService : BackgroundService
 
     private async Task<int> CloseStaleLobbiesAsync(WoahDbContext db, CancellationToken ct)
     {
-        var cutoff = DateTime.UtcNow - StaleLobbyThreshold;
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var cutoff = now - StaleLobbyThreshold;
 
         var staleLobbies = await db.Lobbies
             .Include(l => l.LobbyPlayers)
@@ -70,10 +76,7 @@ public class StaleGameCleanupService : BackgroundService
             lobby.Status = LobbyStatus.Finished;
 
             foreach (var member in lobby.LobbyPlayers.Where(m => m.LeftAt == null))
-                member.LeftAt = DateTime.UtcNow;
-
-            // Filar 1: Playlist tracks remain in DB (cascade-cleaned if needed).
-            // No in-memory store to clear.
+                member.LeftAt = now;
 
             _logger.LogInformation("Closed stale lobby {LobbyCode} (created {CreatedAt})", lobby.Code, lobby.CreatedAt);
         }
@@ -86,7 +89,8 @@ public class StaleGameCleanupService : BackgroundService
 
     private async Task<int> CloseStaleSessionsAsync(WoahDbContext db, CancellationToken ct)
     {
-        var cutoff = DateTime.UtcNow - StaleSessionThreshold;
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var cutoff = now - StaleSessionThreshold;
 
         var activeSessions = await db.GameSessions
             .Include(s => s.Rounds)
@@ -104,7 +108,7 @@ public class StaleGameCleanupService : BackgroundService
             if (lastRoundEnd is null || lastRoundEnd.Value >= cutoff)
                 continue;
 
-            session.EndedAt = DateTime.UtcNow;
+            session.EndedAt = now;
 
             foreach (var round in session.Rounds.Where(r => r.State == RoundState.Playing || r.State == RoundState.Revealed))
                 round.State = RoundState.Finished;

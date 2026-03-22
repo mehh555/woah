@@ -11,37 +11,34 @@ namespace Woah.Api.Services.Session;
 public class SessionService : ISessionService
 {
     private readonly WoahDbContext _dbContext;
-    private readonly IAnswerNormalizer _normalizer;
-    private readonly IAnswerEvaluator _answerEvaluator;
-    private readonly IScoreCalculator _scoreCalculator;
     private readonly ISessionFactory _sessionFactory;
     private readonly ISessionStartValidator _startValidator;
     private readonly ISessionProgressEngine _progressEngine;
     private readonly ISessionStateBuilder _stateBuilder;
+    private readonly IAnswerSubmissionHandler _answerHandler;
     private readonly IGameNotifier _notifier;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<SessionService> _logger;
 
     public SessionService(
         WoahDbContext dbContext,
-        IAnswerNormalizer normalizer,
-        IAnswerEvaluator answerEvaluator,
-        IScoreCalculator scoreCalculator,
         ISessionFactory sessionFactory,
         ISessionStartValidator startValidator,
         ISessionProgressEngine progressEngine,
         ISessionStateBuilder stateBuilder,
+        IAnswerSubmissionHandler answerHandler,
         IGameNotifier notifier,
+        TimeProvider timeProvider,
         ILogger<SessionService> logger)
     {
         _dbContext = dbContext;
-        _normalizer = normalizer;
-        _answerEvaluator = answerEvaluator;
-        _scoreCalculator = scoreCalculator;
         _sessionFactory = sessionFactory;
         _startValidator = startValidator;
         _progressEngine = progressEngine;
         _stateBuilder = stateBuilder;
+        _answerHandler = answerHandler;
         _notifier = notifier;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -109,128 +106,8 @@ public class SessionService : ISessionService
         return await _stateBuilder.BuildAsync(session, ct);
     }
 
-    public async Task<SubmitAnswerResponse> SubmitAnswerAsync(Guid sessionId, SubmitAnswerRequest request, CancellationToken ct = default)
-    {
-        var session = await LoadSessionAsync(sessionId, ct);
-        await _progressEngine.EnsurePlayingToRevealedAsync(session, ct);
-
-        if (session.EndedAt is not null)
-            return SubmitAnswerResponse.Rejected("Session has already finished.");
-
-        var lobby = await _dbContext.Lobbies
-            .Include(x => x.LobbyPlayers)
-            .FirstAsync(x => x.LobbyId == session.LobbyId, ct);
-
-        var activePlayers = lobby.ActivePlayers();
-
-        if (!activePlayers.Any(x => x.PlayerId == request.PlayerId))
-            return SubmitAnswerResponse.Rejected("Player is not active in this lobby.");
-
-        var round = SessionProgressEngine.OrderedRounds(session)
-            .FirstOrDefault(x => x.State == RoundState.Playing);
-
-        if (round is null)
-            return SubmitAnswerResponse.Rejected("There is no active round to answer.");
-
-        if (round.EndsAt is not null && DateTime.UtcNow >= round.EndsAt.Value)
-        {
-            await _progressEngine.EnsurePlayingToRevealedAsync(session, ct);
-            return SubmitAnswerResponse.Rejected("Round has already ended.");
-        }
-
-        var normalizedGuess = _normalizer.Normalize(request.Answer);
-        var match = _answerEvaluator.Evaluate(normalizedGuess, round.AnswerNorm, round.AnswerArtistNorm);
-
-        var settings = SessionSettings.Parse(session.SettingsJson);
-        var elapsed = Math.Max((DateTime.UtcNow - round.StartedAt).TotalSeconds, 0);
-        var pointsPerMatch = _scoreCalculator.Calculate(settings.RoundDurationSeconds, elapsed);
-        var player = activePlayers.First(x => x.PlayerId == request.PlayerId);
-
-        bool newTitle, newArtist;
-        int points;
-
-        for (var attempt = 0; ; attempt++)
-        {
-            var existing = round.CorrectAnswers.FirstOrDefault(x => x.PlayerId == request.PlayerId);
-            var alreadyGotTitle = existing?.GotTitle ?? false;
-            var alreadyGotArtist = existing?.GotArtist ?? false;
-
-            if (alreadyGotTitle && alreadyGotArtist)
-                return SubmitAnswerResponse.AlreadyFullyAnswered();
-
-            newTitle = match.TitleMatched && !alreadyGotTitle;
-            newArtist = match.ArtistMatched && !alreadyGotArtist;
-
-            if (!newTitle && !newArtist)
-            {
-                _logger.LogDebug("Incorrect answer from {PlayerId} in session {SessionId} round {RoundNo}",
-                    request.PlayerId, sessionId, round.RoundNo);
-                return new SubmitAnswerResponse { Accepted = true, Message = "Incorrect answer." };
-            }
-
-            var matchCount = (newTitle ? 1 : 0) + (newArtist ? 1 : 0);
-            points = pointsPerMatch * matchCount;
-
-            try
-            {
-                if (existing is null)
-                {
-                    _dbContext.RoundCorrectAnswers.Add(new RoundCorrectAnswerEntity
-                    {
-                        RoundId = round.RoundId,
-                        PlayerId = request.PlayerId,
-                        AnsweredAt = DateTime.UtcNow,
-                        Points = points,
-                        GotTitle = newTitle,
-                        GotArtist = newArtist
-                    });
-                }
-                else
-                {
-                    if (newTitle) existing.GotTitle = true;
-                    if (newArtist) existing.GotArtist = true;
-                    existing.Points += points;
-                }
-
-                await _dbContext.SaveChangesAsync(ct);
-                break; 
-            }
-            catch (DbUpdateConcurrencyException) when (attempt < 2)
-            {
-                _logger.LogDebug(
-                    "Concurrency conflict on answer for player {PlayerId} round {RoundNo} — retry {Attempt}",
-                    request.PlayerId, round.RoundNo, attempt + 1);
-
-                if (existing is not null)
-                    await _dbContext.Entry(existing).ReloadAsync(ct);
-
-                continue;
-            }
-            catch (DbUpdateException)
-            {
-                _logger.LogDebug(
-                    "Answer rejected (duplicate insert) — player {PlayerId} round {RoundNo} session {SessionId}",
-                    request.PlayerId, round.RoundNo, sessionId);
-                return SubmitAnswerResponse.AlreadyFullyAnswered();
-            }
-        }
-
-        _logger.LogInformation(
-            "Correct answer from {Nick} ({PlayerId}) in session {SessionId} round {RoundNo} — {Points} pts (title={Title}, artist={Artist})",
-            player.Nick, request.PlayerId, sessionId, round.RoundNo, points, newTitle, newArtist);
-
-        await _notifier.PlayerAnsweredCorrectly(sessionId, request.PlayerId, player.Nick, points);
-
-        return new SubmitAnswerResponse
-        {
-            Accepted = true,
-            IsCorrect = true,
-            TitleCorrect = newTitle,
-            ArtistCorrect = newArtist,
-            PointsAwarded = points,
-            Message = newTitle && newArtist ? "Both correct!" : newTitle ? "Title correct!" : "Artist correct!"
-        };
-    }
+    public Task<SubmitAnswerResponse> SubmitAnswerAsync(Guid sessionId, SubmitAnswerRequest request, CancellationToken ct = default)
+        => _answerHandler.HandleAsync(sessionId, request, ct);
 
     public async Task<GetSessionStateResponse> AdvanceSessionAsync(Guid sessionId, AdvanceSessionRequest request, CancellationToken ct = default)
     {
@@ -251,7 +128,7 @@ public class SessionService : ISessionService
         if (playing is not null)
         {
             playing.State = RoundState.Revealed;
-            playing.RevealedAt = DateTime.UtcNow;
+            playing.RevealedAt = _timeProvider.GetUtcNow().UtcDateTime;
             await _dbContext.SaveChangesAsync(ct);
 
             _logger.LogInformation("Round {RoundNo} revealed (skipped) in session {SessionId}", playing.RoundNo, sessionId);
@@ -285,6 +162,8 @@ public class SessionService : ISessionService
         if (lobby.HostPlayerId != request.HostPlayerId)
             throw new ForbiddenException("Only the host can return to lobby.");
 
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+
         lobby.Status = LobbyStatus.Waiting;
 
         var playlist = new PlaylistEntity
@@ -292,11 +171,10 @@ public class SessionService : ISessionService
             PlaylistId = Guid.NewGuid(),
             OwnerPlayerId = request.HostPlayerId,
             Name = $"Lobby {lobby.Code}",
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = now
         };
 
         _dbContext.Playlists.Add(playlist);
-
         lobby.ActivePlaylistId = playlist.PlaylistId;
 
         await _dbContext.SaveChangesAsync(ct);

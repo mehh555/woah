@@ -173,9 +173,8 @@ public class WoahDbContext : DbContext
         modelBuilder.Entity<RoundCorrectAnswerEntity>(e =>
         {
             e.HasKey(rca => new { rca.RoundId, rca.PlayerId });
-
-            // Filar 2: Optimistic concurrency via PostgreSQL system column xmin
-            e.UseXminAsConcurrencyToken();
+            e.Property<uint>("xmin")
+                .IsRowVersion();
 
             e.ToTable(t => t.HasCheckConstraint("CK_RoundCorrectAnswer_Points", "\"Points\" >= 0"));
         });

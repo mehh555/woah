@@ -13,23 +13,26 @@ public class LobbyService : ILobbyService
     private readonly WoahDbContext _dbContext;
     private readonly ILobbyCodeGenerator _codeGenerator;
     private readonly IGameNotifier _notifier;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<LobbyService> _logger;
 
     public LobbyService(
         WoahDbContext dbContext,
         ILobbyCodeGenerator codeGenerator,
         IGameNotifier notifier,
+        TimeProvider timeProvider,
         ILogger<LobbyService> logger)
     {
         _dbContext = dbContext;
         _codeGenerator = codeGenerator;
         _notifier = notifier;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
     public async Task<CreateLobbyResponse> CreateLobbyAsync(CreateLobbyRequest request, CancellationToken ct = default)
     {
-        var now = DateTime.UtcNow;
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
         var nick = request.HostNick.Trim();
         var code = await GenerateUniqueCodeAsync(ct);
 
@@ -51,7 +54,7 @@ public class LobbyService : ILobbyService
             CreatedAt = now,
             HostPlayerId = host.PlayerId,
             MaxPlayers = request.MaxPlayers,
-            ActivePlaylistId = playlist.PlaylistId   // Filar 1
+            ActivePlaylistId = playlist.PlaylistId
         };
 
         var membership = new LobbyPlayerEntity
@@ -81,16 +84,14 @@ public class LobbyService : ILobbyService
 
     public async Task<JoinLobbyResponse> JoinLobbyAsync(string lobbyCode, JoinLobbyRequest request, CancellationToken ct = default)
     {
-        var now = DateTime.UtcNow;
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
         var nick = request.Nick.Trim();
         var normalizedCode = lobbyCode.NormalizeCode();
 
-        // Filar 2: Transaction + FOR UPDATE prevents MaxPlayers and nick race conditions
         await using var tx = await _dbContext.Database.BeginTransactionAsync(ct);
 
         LobbyEntity lobby;
         PlayerEntity player;
-        LobbyPlayerEntity membership;
 
         try
         {
@@ -117,7 +118,7 @@ public class LobbyService : ILobbyService
             }
 
             player = new PlayerEntity { PlayerId = Guid.NewGuid(), Nick = nick, CreatedAt = now };
-            membership = new LobbyPlayerEntity
+            var membership = new LobbyPlayerEntity
             {
                 LobbyId = lobby.LobbyId,
                 PlayerId = player.PlayerId,
@@ -167,7 +168,7 @@ public class LobbyService : ILobbyService
             HostPlayerId = lobby.HostPlayerId,
             PlayerCount = active.Count,
             CurrentSessionId = sessionId,
-            ActivePlaylistId = lobby.ActivePlaylistId,   // Filar 1
+            ActivePlaylistId = lobby.ActivePlaylistId,
             Players = active.Select(x => new LobbyPlayerResponse
             {
                 PlayerId = x.PlayerId,
@@ -180,7 +181,7 @@ public class LobbyService : ILobbyService
 
     public async Task<LeaveLobbyResponse> LeaveLobbyAsync(string lobbyCode, LeaveLobbyRequest request, CancellationToken ct = default)
     {
-        var now = DateTime.UtcNow;
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
         var lobby = await GetLobbyWithPlayersAsync(lobbyCode.NormalizeCode(), ct);
 
         if (lobby.Status != LobbyStatus.Waiting)

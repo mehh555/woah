@@ -1,4 +1,5 @@
 ﻿using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Woah.Api.Middleware;
 
@@ -15,9 +16,16 @@ public static class RateLimitingConfiguration
 
             options.OnRejected = async (context, ct) =>
             {
-                context.HttpContext.Response.ContentType = "application/json";
-                await context.HttpContext.Response.WriteAsJsonAsync(
-                    new { message = "Too many requests. Please wait and try again." }, ct);
+                context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                context.HttpContext.Response.ContentType = "application/problem+json";
+
+                await context.HttpContext.Response.WriteAsJsonAsync(new ProblemDetails
+                {
+                    Status = StatusCodes.Status429TooManyRequests,
+                    Title = "Too Many Requests",
+                    Detail = "Rate limit exceeded. Please wait and try again.",
+                    Instance = context.HttpContext.Request.Path
+                }, ct);
             };
 
             options.AddPolicy(SubmitAnswer, context =>

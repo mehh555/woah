@@ -35,9 +35,14 @@ builder.Services.AddCors(options =>
 builder.Services.AddDbContext<WoahDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("WoahDb")));
 
+// TimeProvider (Filar 3)
+builder.Services.AddSingleton(TimeProvider.System);
+
+// Services
 builder.Services.AddScoped<ILobbyService, LobbyService>();
 builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<ILobbyPlaylistService, LobbyPlaylistService>();
+builder.Services.AddScoped<IAnswerSubmissionHandler, AnswerSubmissionHandler>();
 builder.Services.AddSingleton<IAnswerNormalizer, AnswerNormalizer>();
 builder.Services.AddSingleton<IAnswerEvaluator, AnswerEvaluator>();
 builder.Services.AddSingleton<IScoreCalculator, LinearScoreCalculator>();

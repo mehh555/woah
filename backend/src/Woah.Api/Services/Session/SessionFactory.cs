@@ -6,10 +6,12 @@ namespace Woah.Api.Services.Session;
 public class SessionFactory : ISessionFactory
 {
     private readonly IAnswerNormalizer _normalizer;
+    private readonly TimeProvider _timeProvider;
 
-    public SessionFactory(IAnswerNormalizer normalizer)
+    public SessionFactory(IAnswerNormalizer normalizer, TimeProvider timeProvider)
     {
         _normalizer = normalizer;
+        _timeProvider = timeProvider;
     }
 
     public GameSessionEntity Create(
@@ -20,7 +22,7 @@ public class SessionFactory : ISessionFactory
     {
         Shuffle(tracks);
 
-        var now = DateTime.UtcNow;
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
         var session = new GameSessionEntity
         {
             SessionId = Guid.NewGuid(),

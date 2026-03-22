@@ -10,12 +10,18 @@ public class SessionProgressEngine : ISessionProgressEngine
 {
     private readonly WoahDbContext _dbContext;
     private readonly IGameNotifier _notifier;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<SessionProgressEngine> _logger;
 
-    public SessionProgressEngine(WoahDbContext dbContext, IGameNotifier notifier, ILogger<SessionProgressEngine> logger)
+    public SessionProgressEngine(
+        WoahDbContext dbContext,
+        IGameNotifier notifier,
+        TimeProvider timeProvider,
+        ILogger<SessionProgressEngine> logger)
     {
         _dbContext = dbContext;
         _notifier = notifier;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -23,7 +29,7 @@ public class SessionProgressEngine : ISessionProgressEngine
     {
         if (session.EndedAt is not null) return;
 
-        var now = DateTime.UtcNow;
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
         var rounds = OrderedRounds(session);
 
         var playing = rounds.FirstOrDefault(x => x.State == RoundState.Playing);
@@ -33,7 +39,8 @@ public class SessionProgressEngine : ISessionProgressEngine
             playing.RevealedAt = playing.EndsAt.Value;
             await _dbContext.SaveChangesAsync(ct);
 
-            _logger.LogInformation("Round {RoundNo} auto-revealed (timer expired) in session {SessionId}", playing.RoundNo, session.SessionId);
+            _logger.LogInformation("Round {RoundNo} auto-revealed (timer expired) in session {SessionId}",
+                playing.RoundNo, session.SessionId);
 
             await _notifier.SessionUpdated(session.SessionId);
         }
@@ -47,6 +54,7 @@ public class SessionProgressEngine : ISessionProgressEngine
         CancellationToken ct)
     {
         var settings = SessionSettings.Parse(session.SettingsJson);
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
 
         revealed.State = RoundState.Finished;
 
@@ -54,17 +62,18 @@ public class SessionProgressEngine : ISessionProgressEngine
 
         if (next is null)
         {
-            session.EndedAt = DateTime.UtcNow;
+            session.EndedAt = now;
             lobby.Status = LobbyStatus.Finished;
             _logger.LogInformation("Session {SessionId} finished — no more rounds", session.SessionId);
         }
         else
         {
             next.State = RoundState.Playing;
-            next.StartedAt = DateTime.UtcNow;
-            next.EndsAt = next.StartedAt.AddSeconds(settings.RoundDurationSeconds);
+            next.StartedAt = now;
+            next.EndsAt = now.AddSeconds(settings.RoundDurationSeconds);
             next.RevealedAt = null;
-            _logger.LogInformation("Advanced to round {RoundNo} in session {SessionId}", next.RoundNo, session.SessionId);
+            _logger.LogInformation("Advanced to round {RoundNo} in session {SessionId}",
+                next.RoundNo, session.SessionId);
         }
 
         await _dbContext.SaveChangesAsync(ct);
