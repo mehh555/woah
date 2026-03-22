@@ -5,14 +5,12 @@ using Woah.Api.Exceptions;
 using Woah.Api.Infrastructure.Persistence;
 using Woah.Api.Infrastructure.Persistence.Models;
 using Woah.Api.Services.Notifications;
-using Woah.Api.Services.Playlist;
 
 namespace Woah.Api.Services.Session;
 
 public class SessionService : ISessionService
 {
     private readonly WoahDbContext _dbContext;
-    private readonly ILobbyPlaylistStore _playlistStore;
     private readonly IAnswerNormalizer _normalizer;
     private readonly IAnswerEvaluator _answerEvaluator;
     private readonly IScoreCalculator _scoreCalculator;
@@ -25,7 +23,6 @@ public class SessionService : ISessionService
 
     public SessionService(
         WoahDbContext dbContext,
-        ILobbyPlaylistStore playlistStore,
         IAnswerNormalizer normalizer,
         IAnswerEvaluator answerEvaluator,
         IScoreCalculator scoreCalculator,
@@ -37,7 +34,6 @@ public class SessionService : ISessionService
         ILogger<SessionService> logger)
     {
         _dbContext = dbContext;
-        _playlistStore = playlistStore;
         _normalizer = normalizer;
         _answerEvaluator = answerEvaluator;
         _scoreCalculator = scoreCalculator;
@@ -59,7 +55,10 @@ public class SessionService : ISessionService
             .FirstOrDefaultAsync(x => x.PlaylistId == request.PlaylistId && x.OwnerPlayerId == request.HostPlayerId, ct)
             ?? throw new NotFoundException("Playlist not found for this host.");
 
-        var tracks = _playlistStore.GetTracks(lobby.Code).ToList();
+        var tracks = await _dbContext.PlaylistTracks
+            .Where(x => x.PlaylistId == playlist.PlaylistId)
+            .OrderBy(x => x.AddedAt)
+            .ToListAsync(ct);
 
         if (tracks.Count == 0)
             throw new BadRequestException("Playlist must contain at least one track before starting.");
@@ -78,8 +77,6 @@ public class SessionService : ISessionService
             _dbContext.GameSessions.Add(session);
             await _dbContext.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
-
-            _playlistStore.Clear(lobby.Code);
 
             _logger.LogInformation(
                 "Session {SessionId} started in lobby {LobbyCode} with {RoundCount} rounds (duration={Duration}s)",
@@ -141,59 +138,81 @@ public class SessionService : ISessionService
             return SubmitAnswerResponse.Rejected("Round has already ended.");
         }
 
-        var existing = round.CorrectAnswers.FirstOrDefault(x => x.PlayerId == request.PlayerId);
-        var alreadyGotTitle = existing?.GotTitle ?? false;
-        var alreadyGotArtist = existing?.GotArtist ?? false;
-
-        if (alreadyGotTitle && alreadyGotArtist)
-            return SubmitAnswerResponse.AlreadyFullyAnswered();
-
         var normalizedGuess = _normalizer.Normalize(request.Answer);
         var match = _answerEvaluator.Evaluate(normalizedGuess, round.AnswerNorm, round.AnswerArtistNorm);
-
-        var newTitle = match.TitleMatched && !alreadyGotTitle;
-        var newArtist = match.ArtistMatched && !alreadyGotArtist;
-
-        if (!newTitle && !newArtist)
-        {
-            _logger.LogDebug("Incorrect answer from {PlayerId} in session {SessionId} round {RoundNo}", request.PlayerId, sessionId, round.RoundNo);
-            return new SubmitAnswerResponse { Accepted = true, Message = "Incorrect answer." };
-        }
 
         var settings = SessionSettings.Parse(session.SettingsJson);
         var elapsed = Math.Max((DateTime.UtcNow - round.StartedAt).TotalSeconds, 0);
         var pointsPerMatch = _scoreCalculator.Calculate(settings.RoundDurationSeconds, elapsed);
-        var matchCount = (newTitle ? 1 : 0) + (newArtist ? 1 : 0);
-        var points = pointsPerMatch * matchCount;
-        var player = activePlayers.First(x => x.PlayerId == request.PlayerId); 
+        var player = activePlayers.First(x => x.PlayerId == request.PlayerId);
 
-        try
+        bool newTitle, newArtist;
+        int points;
+
+        for (var attempt = 0; ; attempt++)
         {
-            if (existing is null)
+            var existing = round.CorrectAnswers.FirstOrDefault(x => x.PlayerId == request.PlayerId);
+            var alreadyGotTitle = existing?.GotTitle ?? false;
+            var alreadyGotArtist = existing?.GotArtist ?? false;
+
+            if (alreadyGotTitle && alreadyGotArtist)
+                return SubmitAnswerResponse.AlreadyFullyAnswered();
+
+            newTitle = match.TitleMatched && !alreadyGotTitle;
+            newArtist = match.ArtistMatched && !alreadyGotArtist;
+
+            if (!newTitle && !newArtist)
             {
-                _dbContext.RoundCorrectAnswers.Add(new RoundCorrectAnswerEntity
+                _logger.LogDebug("Incorrect answer from {PlayerId} in session {SessionId} round {RoundNo}",
+                    request.PlayerId, sessionId, round.RoundNo);
+                return new SubmitAnswerResponse { Accepted = true, Message = "Incorrect answer." };
+            }
+
+            var matchCount = (newTitle ? 1 : 0) + (newArtist ? 1 : 0);
+            points = pointsPerMatch * matchCount;
+
+            try
+            {
+                if (existing is null)
                 {
-                    RoundId = round.RoundId,
-                    PlayerId = request.PlayerId,
-                    AnsweredAt = DateTime.UtcNow,
-                    Points = points,
-                    GotTitle = newTitle,
-                    GotArtist = newArtist
-                });
-            }
-            else
-            {
-                if (newTitle) existing.GotTitle = true;
-                if (newArtist) existing.GotArtist = true;
-                existing.Points += points;
-            }
+                    _dbContext.RoundCorrectAnswers.Add(new RoundCorrectAnswerEntity
+                    {
+                        RoundId = round.RoundId,
+                        PlayerId = request.PlayerId,
+                        AnsweredAt = DateTime.UtcNow,
+                        Points = points,
+                        GotTitle = newTitle,
+                        GotArtist = newArtist
+                    });
+                }
+                else
+                {
+                    if (newTitle) existing.GotTitle = true;
+                    if (newArtist) existing.GotArtist = true;
+                    existing.Points += points;
+                }
 
-            await _dbContext.SaveChangesAsync(ct);
-        }
-        catch (DbUpdateException)
-        {
-            _logger.LogDebug("Answer rejected (concurrency) — player {PlayerId} round {RoundNo} session {SessionId}", request.PlayerId, round.RoundNo, sessionId);
-            return SubmitAnswerResponse.AlreadyFullyAnswered();
+                await _dbContext.SaveChangesAsync(ct);
+                break; 
+            }
+            catch (DbUpdateConcurrencyException) when (attempt < 2)
+            {
+                _logger.LogDebug(
+                    "Concurrency conflict on answer for player {PlayerId} round {RoundNo} — retry {Attempt}",
+                    request.PlayerId, round.RoundNo, attempt + 1);
+
+                if (existing is not null)
+                    await _dbContext.Entry(existing).ReloadAsync(ct);
+
+                continue;
+            }
+            catch (DbUpdateException)
+            {
+                _logger.LogDebug(
+                    "Answer rejected (duplicate insert) — player {PlayerId} round {RoundNo} session {SessionId}",
+                    request.PlayerId, round.RoundNo, sessionId);
+                return SubmitAnswerResponse.AlreadyFullyAnswered();
+            }
         }
 
         _logger.LogInformation(
@@ -277,6 +296,9 @@ public class SessionService : ISessionService
         };
 
         _dbContext.Playlists.Add(playlist);
+
+        lobby.ActivePlaylistId = playlist.PlaylistId;
+
         await _dbContext.SaveChangesAsync(ct);
 
         _logger.LogInformation("Lobby {LobbyCode} returned to waiting (new PlaylistId={PlaylistId})", lobby.Code, playlist.PlaylistId);

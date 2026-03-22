@@ -12,6 +12,7 @@ public class WoahDbContext : DbContext
     public DbSet<LobbyEntity> Lobbies => Set<LobbyEntity>();
     public DbSet<LobbyPlayerEntity> LobbyPlayers => Set<LobbyPlayerEntity>();
     public DbSet<PlaylistEntity> Playlists => Set<PlaylistEntity>();
+    public DbSet<PlaylistTrackEntity> PlaylistTracks => Set<PlaylistTrackEntity>();
     public DbSet<GameSessionEntity> GameSessions => Set<GameSessionEntity>();
     public DbSet<RoundEntity> Rounds => Set<RoundEntity>();
     public DbSet<RoundCorrectAnswerEntity> RoundCorrectAnswers => Set<RoundCorrectAnswerEntity>();
@@ -48,6 +49,11 @@ public class WoahDbContext : DbContext
             e.HasOne(l => l.HostPlayer)
                 .WithMany()
                 .HasForeignKey(l => l.HostPlayerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(l => l.ActivePlaylist)
+                .WithMany()
+                .HasForeignKey(l => l.ActivePlaylistId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             e.ToTable(t => t.HasCheckConstraint("CK_Lobby_MaxPlayers", "\"MaxPlayers\" >= 2 AND \"MaxPlayers\" <= 20"));
@@ -87,6 +93,34 @@ public class WoahDbContext : DbContext
             e.Property(pl => pl.Market)
                 .IsRequired()
                 .HasMaxLength(5);
+        });
+
+        modelBuilder.Entity<PlaylistTrackEntity>(e =>
+        {
+            e.HasKey(pt => pt.PlaylistTrackId);
+
+            e.HasIndex(pt => new { pt.PlaylistId, pt.ItunesTrackId })
+                .IsUnique();
+
+            e.Property(pt => pt.Title)
+                .IsRequired()
+                .HasMaxLength(300);
+
+            e.Property(pt => pt.Artist)
+                .IsRequired()
+                .HasMaxLength(300);
+
+            e.Property(pt => pt.PreviewUrl)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            e.Property(pt => pt.ArtworkUrl)
+                .HasMaxLength(500);
+
+            e.HasOne(pt => pt.Playlist)
+                .WithMany(pl => pl.Tracks)
+                .HasForeignKey(pt => pt.PlaylistId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<GameSessionEntity>(e =>
@@ -139,6 +173,9 @@ public class WoahDbContext : DbContext
         modelBuilder.Entity<RoundCorrectAnswerEntity>(e =>
         {
             e.HasKey(rca => new { rca.RoundId, rca.PlayerId });
+
+            // Filar 2: Optimistic concurrency via PostgreSQL system column xmin
+            e.UseXminAsConcurrencyToken();
 
             e.ToTable(t => t.HasCheckConstraint("CK_RoundCorrectAnswer_Points", "\"Points\" >= 0"));
         });

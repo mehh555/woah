@@ -51,7 +51,7 @@ namespace Woah.Api.Migrations
 
                     b.HasIndex("PlaylistId");
 
-                    b.ToTable("GameSessions");
+                    b.ToTable("GameSessions", (string)null);
                 });
 
             modelBuilder.Entity("Woah.Api.Infrastructure.Persistence.Models.LobbyEntity", b =>
@@ -86,7 +86,7 @@ namespace Woah.Api.Migrations
 
                     b.HasIndex("HostPlayerId");
 
-                    b.ToTable("Lobbies", t =>
+                    b.ToTable("Lobbies", null, t =>
                         {
                             t.HasCheckConstraint("CK_Lobby_MaxPlayers", "\"MaxPlayers\" >= 2 AND \"MaxPlayers\" <= 20");
                         });
@@ -119,7 +119,7 @@ namespace Woah.Api.Migrations
                         .IsUnique()
                         .HasFilter("\"LeftAt\" IS NULL");
 
-                    b.ToTable("LobbyPlayers");
+                    b.ToTable("LobbyPlayers", (string)null);
                 });
 
             modelBuilder.Entity("Woah.Api.Infrastructure.Persistence.Models.PlayerEntity", b =>
@@ -138,7 +138,7 @@ namespace Woah.Api.Migrations
 
                     b.HasKey("PlayerId");
 
-                    b.ToTable("Players");
+                    b.ToTable("Players", (string)null);
                 });
 
             modelBuilder.Entity("Woah.Api.Infrastructure.Persistence.Models.PlaylistEntity", b =>
@@ -167,7 +167,7 @@ namespace Woah.Api.Migrations
 
                     b.HasIndex("OwnerPlayerId");
 
-                    b.ToTable("Playlists");
+                    b.ToTable("Playlists", (string)null);
                 });
 
             modelBuilder.Entity("Woah.Api.Infrastructure.Persistence.Models.RoundCorrectAnswerEntity", b =>
@@ -194,7 +194,7 @@ namespace Woah.Api.Migrations
 
                     b.HasIndex("PlayerId");
 
-                    b.ToTable("RoundCorrectAnswers", t =>
+                    b.ToTable("RoundCorrectAnswers", null, t =>
                         {
                             t.HasCheckConstraint("CK_RoundCorrectAnswer_Points", "\"Points\" >= 0");
                         });
@@ -269,7 +269,7 @@ namespace Woah.Api.Migrations
                     b.HasIndex("SessionId", "RoundNo")
                         .IsUnique();
 
-                    b.ToTable("Rounds", t =>
+                    b.ToTable("Rounds", null, t =>
                         {
                             t.HasCheckConstraint("CK_Round_RoundNo", "\"RoundNo\" >= 1");
                         });

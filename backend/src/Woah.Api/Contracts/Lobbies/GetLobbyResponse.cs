@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace Woah.Api.Contracts.Lobbies;
+﻿namespace Woah.Api.Contracts.Lobbies;
 
 public class GetLobbyResponse
 {
@@ -12,5 +9,6 @@ public class GetLobbyResponse
     public Guid HostPlayerId { get; set; }
     public int PlayerCount { get; set; }
     public Guid? CurrentSessionId { get; set; }
+    public Guid ActivePlaylistId { get; set; }
     public List<LobbyPlayerResponse> Players { get; set; } = new();
 }

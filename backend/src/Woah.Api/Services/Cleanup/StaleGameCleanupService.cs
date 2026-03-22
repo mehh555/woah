@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Woah.Api.Domain;
 using Woah.Api.Infrastructure.Persistence;
-using Woah.Api.Services.Playlist;
 
 namespace Woah.Api.Services.Cleanup;
 
@@ -12,19 +11,18 @@ public class StaleGameCleanupService : BackgroundService
     private static readonly TimeSpan StaleSessionThreshold = TimeSpan.FromMinutes(15);
 
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILobbyPlaylistStore _playlistStore;
     private readonly ILogger<StaleGameCleanupService> _logger;
 
-    public StaleGameCleanupService(IServiceScopeFactory scopeFactory, ILobbyPlaylistStore playlistStore, ILogger<StaleGameCleanupService> logger)
+    public StaleGameCleanupService(IServiceScopeFactory scopeFactory, ILogger<StaleGameCleanupService> logger)
     {
         _scopeFactory = scopeFactory;
-        _playlistStore = playlistStore;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("StaleGameCleanupService started (interval={Interval}, lobbyThreshold={LobbyThreshold}, sessionThreshold={SessionThreshold})",
+        _logger.LogInformation(
+            "StaleGameCleanupService started (interval={Interval}, lobbyThreshold={LobbyThreshold}, sessionThreshold={SessionThreshold})",
             Interval, StaleLobbyThreshold, StaleSessionThreshold);
 
         while (!stoppingToken.IsCancellationRequested)
@@ -54,7 +52,8 @@ public class StaleGameCleanupService : BackgroundService
         var closedSessions = await CloseStaleSessionsAsync(db, ct);
 
         if (closedLobbies > 0 || closedSessions > 0)
-            _logger.LogInformation("Cleanup completed: {Lobbies} lobbies closed, {Sessions} sessions closed", closedLobbies, closedSessions);
+            _logger.LogInformation("Cleanup completed: {Lobbies} lobbies closed, {Sessions} sessions closed",
+                closedLobbies, closedSessions);
     }
 
     private async Task<int> CloseStaleLobbiesAsync(WoahDbContext db, CancellationToken ct)
@@ -73,7 +72,8 @@ public class StaleGameCleanupService : BackgroundService
             foreach (var member in lobby.LobbyPlayers.Where(m => m.LeftAt == null))
                 member.LeftAt = DateTime.UtcNow;
 
-            _playlistStore.Clear(lobby.Code);
+            // Filar 1: Playlist tracks remain in DB (cascade-cleaned if needed).
+            // No in-memory store to clear.
 
             _logger.LogInformation("Closed stale lobby {LobbyCode} (created {CreatedAt})", lobby.Code, lobby.CreatedAt);
         }
@@ -113,7 +113,8 @@ public class StaleGameCleanupService : BackgroundService
             if (lobby is not null && lobby.Status == LobbyStatus.InGame)
                 lobby.Status = LobbyStatus.Finished;
 
-            _logger.LogInformation("Closed stale session {SessionId} (last round ended {LastRoundEnd})", session.SessionId, lastRoundEnd);
+            _logger.LogInformation("Closed stale session {SessionId} (last round ended {LastRoundEnd})",
+                session.SessionId, lastRoundEnd);
             closed++;
         }
 

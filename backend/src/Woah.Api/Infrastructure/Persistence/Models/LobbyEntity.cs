@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Woah.Api.Domain;
 
 namespace Woah.Api.Infrastructure.Persistence.Models;
@@ -11,8 +9,11 @@ public class LobbyEntity
     public LobbyStatus Status { get; set; } = LobbyStatus.Waiting;
     public DateTime CreatedAt { get; set; }
     public Guid HostPlayerId { get; set; }
+    public int MaxPlayers { get; set; } = 10;
+
+    public Guid ActivePlaylistId { get; set; }
 
     public PlayerEntity? HostPlayer { get; set; }
+    public PlaylistEntity? ActivePlaylist { get; set; }
     public ICollection<LobbyPlayerEntity> LobbyPlayers { get; set; } = new List<LobbyPlayerEntity>();
-    public int MaxPlayers { get; set; } = 10;
 }

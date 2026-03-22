@@ -1,14 +1,17 @@
 ﻿using Woah.Api.Contracts.Playlists;
+using Woah.Api.Infrastructure.Persistence.Models;
 using Woah.Api.Integrations.Itunes;
 
 namespace Woah.Api.Services.Playlist;
 
 internal static class LobbyTrackMapper
 {
-    public static LobbyDraftTrack ToDraft(ItunesTrackDto track) =>
+    public static PlaylistTrackEntity ToEntity(ItunesTrackDto track, Guid playlistId) =>
         new()
         {
-            TrackId = track.TrackId,
+            PlaylistTrackId = Guid.NewGuid(),
+            PlaylistId = playlistId,
+            ItunesTrackId = track.TrackId,
             Title = track.TrackName!,
             Artist = track.ArtistName!,
             PreviewUrl = track.PreviewUrl!,
@@ -29,10 +32,10 @@ internal static class LobbyTrackMapper
             CollectionName = track.CollectionName
         };
 
-    public static LobbyPlaylistTrackResponse ToResponse(LobbyDraftTrack track) =>
+    public static LobbyPlaylistTrackResponse ToResponse(PlaylistTrackEntity track) =>
         new()
         {
-            TrackId = track.TrackId,
+            TrackId = track.ItunesTrackId,
             Title = track.Title,
             Artist = track.Artist,
             PreviewUrl = track.PreviewUrl,

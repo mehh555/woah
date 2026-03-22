@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace Woah.Api.Infrastructure.Persistence.Models;
 
 public class PlaylistEntity
@@ -12,4 +9,6 @@ public class PlaylistEntity
     public string Name { get; set; } = default!;
     public string Market { get; set; } = "PL";
     public DateTime CreatedAt { get; set; }
+
+    public ICollection<PlaylistTrackEntity> Tracks { get; set; } = new List<PlaylistTrackEntity>();
 }

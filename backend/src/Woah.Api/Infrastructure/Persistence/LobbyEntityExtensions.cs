@@ -21,4 +21,16 @@ internal static class LobbyEntityExtensions
             .Include(x => x.LobbyPlayers)
             .FirstOrDefaultAsync(x => x.Code == normalizedCode, ct)
         ?? throw new NotFoundException("Lobby not found.");
+
+    public static async Task<LobbyEntity> GetLobbyWithPlayersForUpdateAsync(
+        this WoahDbContext dbContext, string normalizedCode, CancellationToken ct)
+    {
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM \"Lobbies\" WHERE \"Code\" = {normalizedCode} FOR UPDATE", ct);
+
+        return await dbContext.Lobbies
+            .Include(x => x.LobbyPlayers)
+            .FirstOrDefaultAsync(x => x.Code == normalizedCode, ct)
+            ?? throw new NotFoundException("Lobby not found.");
+    }
 }

@@ -5,7 +5,6 @@ using Woah.Api.Exceptions;
 using Woah.Api.Infrastructure.Persistence;
 using Woah.Api.Infrastructure.Persistence.Models;
 using Woah.Api.Services.Notifications;
-using Woah.Api.Services.Playlist;
 
 namespace Woah.Api.Services.Lobby;
 
@@ -13,15 +12,17 @@ public class LobbyService : ILobbyService
 {
     private readonly WoahDbContext _dbContext;
     private readonly ILobbyCodeGenerator _codeGenerator;
-    private readonly ILobbyPlaylistStore _playlistStore;
     private readonly IGameNotifier _notifier;
     private readonly ILogger<LobbyService> _logger;
 
-    public LobbyService(WoahDbContext dbContext, ILobbyCodeGenerator codeGenerator, ILobbyPlaylistStore playlistStore, IGameNotifier notifier, ILogger<LobbyService> logger)
+    public LobbyService(
+        WoahDbContext dbContext,
+        ILobbyCodeGenerator codeGenerator,
+        IGameNotifier notifier,
+        ILogger<LobbyService> logger)
     {
         _dbContext = dbContext;
         _codeGenerator = codeGenerator;
-        _playlistStore = playlistStore;
         _notifier = notifier;
         _logger = logger;
     }
@@ -34,6 +35,14 @@ public class LobbyService : ILobbyService
 
         var host = new PlayerEntity { PlayerId = Guid.NewGuid(), Nick = nick, CreatedAt = now };
 
+        var playlist = new PlaylistEntity
+        {
+            PlaylistId = Guid.NewGuid(),
+            OwnerPlayerId = host.PlayerId,
+            Name = $"Lobby {code}",
+            CreatedAt = now
+        };
+
         var lobby = new LobbyEntity
         {
             LobbyId = Guid.NewGuid(),
@@ -41,7 +50,8 @@ public class LobbyService : ILobbyService
             Status = LobbyStatus.Waiting,
             CreatedAt = now,
             HostPlayerId = host.PlayerId,
-            MaxPlayers = request.MaxPlayers
+            MaxPlayers = request.MaxPlayers,
+            ActivePlaylistId = playlist.PlaylistId   // Filar 1
         };
 
         var membership = new LobbyPlayerEntity
@@ -52,18 +62,10 @@ public class LobbyService : ILobbyService
             JoinedAt = now
         };
 
-        var playlist = new PlaylistEntity
-        {
-            PlaylistId = Guid.NewGuid(),
-            OwnerPlayerId = host.PlayerId,
-            Name = $"Lobby {code}",
-            CreatedAt = now
-        };
-
         _dbContext.Players.Add(host);
+        _dbContext.Playlists.Add(playlist);
         _dbContext.Lobbies.Add(lobby);
         _dbContext.LobbyPlayers.Add(membership);
-        _dbContext.Playlists.Add(playlist);
         await _dbContext.SaveChangesAsync(ct);
 
         _logger.LogInformation("Lobby {LobbyCode} created by {Nick} (HostPlayerId={HostPlayerId})", code, nick, host.PlayerId);
@@ -81,44 +83,60 @@ public class LobbyService : ILobbyService
     {
         var now = DateTime.UtcNow;
         var nick = request.Nick.Trim();
+        var normalizedCode = lobbyCode.NormalizeCode();
 
-        var lobby = await GetLobbyWithPlayersAsync(lobbyCode.NormalizeCode(), ct);
+        // Filar 2: Transaction + FOR UPDATE prevents MaxPlayers and nick race conditions
+        await using var tx = await _dbContext.Database.BeginTransactionAsync(ct);
 
-        if (lobby.Status != LobbyStatus.Waiting)
+        LobbyEntity lobby;
+        PlayerEntity player;
+        LobbyPlayerEntity membership;
+
+        try
         {
-            _logger.LogWarning("Join rejected — lobby {LobbyCode} is not waiting (Status={Status})", lobby.Code, lobby.Status);
-            throw new BadRequestException("Lobby is not accepting new players.");
+            lobby = await _dbContext.GetLobbyWithPlayersForUpdateAsync(normalizedCode, ct);
+
+            if (lobby.Status != LobbyStatus.Waiting)
+            {
+                _logger.LogWarning("Join rejected — lobby {LobbyCode} is not waiting (Status={Status})", lobby.Code, lobby.Status);
+                throw new BadRequestException("Lobby is not accepting new players.");
+            }
+
+            var active = lobby.ActivePlayers();
+
+            if (active.Count >= lobby.MaxPlayers)
+            {
+                _logger.LogWarning("Join rejected — lobby {LobbyCode} is full ({Count}/{Max})", lobby.Code, active.Count, lobby.MaxPlayers);
+                throw new BadRequestException("Lobby is full.");
+            }
+
+            if (active.Any(x => string.Equals(x.Nick, nick, StringComparison.OrdinalIgnoreCase)))
+            {
+                _logger.LogWarning("Join rejected — nick {Nick} already taken in lobby {LobbyCode}", nick, lobby.Code);
+                throw new BadRequestException("Nick is already taken in this lobby.");
+            }
+
+            player = new PlayerEntity { PlayerId = Guid.NewGuid(), Nick = nick, CreatedAt = now };
+            membership = new LobbyPlayerEntity
+            {
+                LobbyId = lobby.LobbyId,
+                PlayerId = player.PlayerId,
+                Nick = nick,
+                JoinedAt = now
+            };
+
+            _dbContext.Players.Add(player);
+            _dbContext.LobbyPlayers.Add(membership);
+            await _dbContext.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
         }
-
-        var active = lobby.ActivePlayers();
-
-        if (active.Count >= lobby.MaxPlayers)
+        catch
         {
-            _logger.LogWarning("Join rejected — lobby {LobbyCode} is full ({Count}/{Max})", lobby.Code, active.Count, lobby.MaxPlayers);
-            throw new BadRequestException("Lobby is full.");
+            await tx.RollbackAsync(ct);
+            throw;
         }
-
-        if (active.Any(x => string.Equals(x.Nick, nick, StringComparison.OrdinalIgnoreCase)))
-        {
-            _logger.LogWarning("Join rejected — nick {Nick} already taken in lobby {LobbyCode}", nick, lobby.Code);
-            throw new BadRequestException("Nick is already taken in this lobby.");
-        }
-
-        var player = new PlayerEntity { PlayerId = Guid.NewGuid(), Nick = nick, CreatedAt = now };
-        var membership = new LobbyPlayerEntity
-        {
-            LobbyId = lobby.LobbyId,
-            PlayerId = player.PlayerId,
-            Nick = nick,
-            JoinedAt = now
-        };
-
-        _dbContext.Players.Add(player);
-        _dbContext.LobbyPlayers.Add(membership);
-        await _dbContext.SaveChangesAsync(ct);
 
         _logger.LogInformation("Player {Nick} (PlayerId={PlayerId}) joined lobby {LobbyCode}", nick, player.PlayerId, lobby.Code);
-
         await _notifier.LobbyUpdated(lobby.Code);
 
         return new JoinLobbyResponse
@@ -149,6 +167,7 @@ public class LobbyService : ILobbyService
             HostPlayerId = lobby.HostPlayerId,
             PlayerCount = active.Count,
             CurrentSessionId = sessionId,
+            ActivePlaylistId = lobby.ActivePlaylistId,   // Filar 1
             Players = active.Select(x => new LobbyPlayerResponse
             {
                 PlayerId = x.PlayerId,
@@ -187,7 +206,6 @@ public class LobbyService : ILobbyService
                 m.LeftAt = now;
 
             lobby.Status = LobbyStatus.Finished;
-            _playlistStore.Clear(lobby.Code);
             _logger.LogInformation("Host {PlayerId} left lobby {LobbyCode} — lobby closed", request.PlayerId, lobby.Code);
         }
         else
@@ -197,7 +215,6 @@ public class LobbyService : ILobbyService
         }
 
         await _dbContext.SaveChangesAsync(ct);
-
         await _notifier.LobbyUpdated(lobby.Code);
 
         return new LeaveLobbyResponse

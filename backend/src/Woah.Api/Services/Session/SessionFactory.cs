@@ -1,6 +1,5 @@
 ﻿using Woah.Api.Domain;
 using Woah.Api.Infrastructure.Persistence.Models;
-using Woah.Api.Services.Playlist;
 
 namespace Woah.Api.Services.Session;
 
@@ -16,7 +15,7 @@ public class SessionFactory : ISessionFactory
     public GameSessionEntity Create(
         LobbyEntity lobby,
         PlaylistEntity playlist,
-        IList<LobbyDraftTrack> tracks,
+        IList<PlaylistTrackEntity> tracks,
         SessionSettings settings)
     {
         Shuffle(tracks);
@@ -49,7 +48,7 @@ public class SessionFactory : ISessionFactory
                 AnswerNorm = _normalizer.Normalize(tracks[i].Title),
                 AnswerArtistNorm = _normalizer.Normalize(tracks[i].Artist),
                 ArtworkUrl = tracks[i].ArtworkUrl,
-                ItunesTrackId = tracks[i].TrackId,
+                ItunesTrackId = tracks[i].ItunesTrackId,
                 StartedAt = now,
                 EndsAt = isFirst ? now.AddSeconds(settings.RoundDurationSeconds) : null,
                 RevealedAt = null,

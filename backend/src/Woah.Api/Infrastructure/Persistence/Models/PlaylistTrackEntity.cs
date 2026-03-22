@@ -1,8 +1,12 @@
-﻿namespace Woah.Api.Services.Playlist;
+namespace Woah.Api.Infrastructure.Persistence.Models;
 
-public class LobbyDraftTrack
+public class PlaylistTrackEntity
 {
-    public long TrackId { get; set; }
+    public Guid PlaylistTrackId { get; set; }
+    public Guid PlaylistId { get; set; }
+    public PlaylistEntity? Playlist { get; set; }
+
+    public long ItunesTrackId { get; set; }
     public string Title { get; set; } = default!;
     public string Artist { get; set; } = default!;
     public string PreviewUrl { get; set; } = default!;
