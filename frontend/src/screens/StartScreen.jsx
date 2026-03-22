@@ -51,7 +51,8 @@ export default function StartScreen({ onEnter }) {
     return (
         <div className="start-screen">
             <div className="logo anim-fadeDown">
-                <div className="logo-title">Muzyczne<br />Kalambury</div>
+                <div className="logo-title">woah</div>
+                <div className="logo-title">goblinek 10iq</div>
                 <div className="logo-sub">🎵 Zgadnij piosenkę!</div>
             </div>
 
