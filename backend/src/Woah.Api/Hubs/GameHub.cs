@@ -1,17 +1,24 @@
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.SignalR;
 using Woah.Api.Infrastructure.Persistence;
 
 namespace Woah.Api.Hubs;
 
-public class GameHub : Hub
+public partial class GameHub : Hub
 {
     private readonly ILogger<GameHub> _logger;
+
+    [GeneratedRegex(@"^[A-Z0-9]{4,8}$")]
+    private static partial Regex LobbyCodePattern();
 
     public GameHub(ILogger<GameHub> logger) => _logger = logger;
 
     public Task JoinLobby(string lobbyCode)
     {
         var code = lobbyCode.NormalizeCode();
+        if (!LobbyCodePattern().IsMatch(code))
+            throw new HubException("Invalid lobby code format.");
+
         _logger.LogInformation("Connection {ConnectionId} joined lobby group {LobbyCode}", Context.ConnectionId, code);
         return Groups.AddToGroupAsync(Context.ConnectionId, $"lobby:{code}");
     }
@@ -19,6 +26,9 @@ public class GameHub : Hub
     public Task LeaveLobby(string lobbyCode)
     {
         var code = lobbyCode.NormalizeCode();
+        if (!LobbyCodePattern().IsMatch(code))
+            throw new HubException("Invalid lobby code format.");
+
         _logger.LogInformation("Connection {ConnectionId} left lobby group {LobbyCode}", Context.ConnectionId, code);
         return Groups.RemoveFromGroupAsync(Context.ConnectionId, $"lobby:{code}");
     }

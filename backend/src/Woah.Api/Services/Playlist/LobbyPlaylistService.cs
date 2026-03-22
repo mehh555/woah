@@ -11,7 +11,6 @@ namespace Woah.Api.Services.Playlist;
 
 public class LobbyPlaylistService : ILobbyPlaylistService
 {
-    private const int MaxPlaylistTracks = 20;
 
     private readonly WoahDbContext _dbContext;
     private readonly ItunesApiClient _itunesClient;
@@ -53,10 +52,10 @@ public class LobbyPlaylistService : ILobbyPlaylistService
     {
         var lobby = await GetLobbyForHostAsync(lobbyCode, request.HostPlayerId, ct);
 
-        if (_store.GetTracks(lobby.Code).Count >= MaxPlaylistTracks)
+        if (_store.GetTracks(lobby.Code).Count >= ILobbyPlaylistStore.MaxTracks)
         {
-            _logger.LogWarning("Add track rejected — playlist limit reached for lobby {LobbyCode} ({Max} tracks)", lobby.Code, MaxPlaylistTracks);
-            throw new BadRequestException($"Playlist cannot exceed {MaxPlaylistTracks} tracks.");
+            _logger.LogWarning("Add track rejected — playlist limit reached for lobby {LobbyCode} ({Max} tracks)", lobby.Code, ILobbyPlaylistStore.MaxTracks);
+            throw new BadRequestException($"Playlist cannot exceed {ILobbyPlaylistStore.MaxTracks} tracks.");
         }
 
         var track = await _itunesClient.LookupSongAsync(request.TrackId, ct);
@@ -96,9 +95,6 @@ public class LobbyPlaylistService : ILobbyPlaylistService
 
         return await GetLobbyPlaylistAsync(lobby.Code, ct);
     }
-
-    public void ClearLobbyPlaylist(string lobbyCode)
-        => _store.Clear(lobbyCode.NormalizeCode());
 
     private async Task EnsureLobbyExistsAsync(string normalizedCode, CancellationToken ct)
     {

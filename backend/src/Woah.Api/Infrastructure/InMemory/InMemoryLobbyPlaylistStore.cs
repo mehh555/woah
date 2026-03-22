@@ -5,7 +5,6 @@ namespace Woah.Api.Infrastructure.InMemory;
 
 public class InMemoryLobbyPlaylistStore : ILobbyPlaylistStore
 {
-    public const int MaxTracks = 20;
 
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<long, LobbyDraftTrack>> _store =
         new(StringComparer.OrdinalIgnoreCase);
@@ -18,20 +17,19 @@ public class InMemoryLobbyPlaylistStore : ILobbyPlaylistStore
         return tracks.Values.OrderBy(x => x.AddedAt).ToList();
     }
 
+    private static readonly object _addLock = new();
+
     public bool TryAddTrack(string lobbyCode, LobbyDraftTrack track)
     {
         var bucket = _store.GetOrAdd(lobbyCode, _ => new ConcurrentDictionary<long, LobbyDraftTrack>());
 
-        if (!bucket.TryAdd(track.TrackId, track))
-            return false;
-
-        if (bucket.Count > MaxTracks)
+        lock (_addLock)
         {
-            bucket.TryRemove(track.TrackId, out _);
-            return false;
-        }
+            if (bucket.Count >= ILobbyPlaylistStore.MaxTracks)
+                return false;
 
-        return true;
+            return bucket.TryAdd(track.TrackId, track);
+        }
     }
 
     public bool RemoveTrack(string lobbyCode, long trackId)

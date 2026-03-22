@@ -14,6 +14,7 @@ public class SessionService : ISessionService
     private readonly WoahDbContext _dbContext;
     private readonly ILobbyPlaylistStore _playlistStore;
     private readonly IAnswerNormalizer _normalizer;
+    private readonly IAnswerEvaluator _answerEvaluator;
     private readonly IScoreCalculator _scoreCalculator;
     private readonly ISessionProgressEngine _progressEngine;
     private readonly ISessionStateBuilder _stateBuilder;
@@ -24,6 +25,7 @@ public class SessionService : ISessionService
         WoahDbContext dbContext,
         ILobbyPlaylistStore playlistStore,
         IAnswerNormalizer normalizer,
+        IAnswerEvaluator answerEvaluator,
         IScoreCalculator scoreCalculator,
         ISessionProgressEngine progressEngine,
         ISessionStateBuilder stateBuilder,
@@ -33,6 +35,7 @@ public class SessionService : ISessionService
         _dbContext = dbContext;
         _playlistStore = playlistStore;
         _normalizer = normalizer;
+        _answerEvaluator = answerEvaluator;
         _scoreCalculator = scoreCalculator;
         _progressEngine = progressEngine;
         _stateBuilder = stateBuilder;
@@ -132,7 +135,9 @@ public class SessionService : ISessionService
             .Include(x => x.LobbyPlayers)
             .FirstAsync(x => x.LobbyId == session.LobbyId, ct);
 
-        if (!lobby.ActivePlayers().Any(x => x.PlayerId == request.PlayerId))
+        var activePlayers = lobby.ActivePlayers();
+
+        if (!activePlayers.Any(x => x.PlayerId == request.PlayerId))
         {
             _logger.LogWarning("Answer rejected — player {PlayerId} not active in lobby for session {SessionId}", request.PlayerId, sessionId);
             return Reject("Player is not active in this lobby.");
@@ -160,7 +165,7 @@ public class SessionService : ISessionService
             return AlreadyAnswered();
         }
 
-        if (!IsAnswerCorrect(_normalizer.Normalize(request.Answer), round.AnswerNorm, round.AnswerArtistNorm))
+        if(!_answerEvaluator.IsCorrect(_normalizer.Normalize(request.Answer), round.AnswerNorm, round.AnswerArtistNorm))
         {
             _logger.LogDebug("Incorrect answer from {PlayerId} in session {SessionId} round {RoundNo}", request.PlayerId, sessionId, round.RoundNo);
             return new SubmitAnswerResponse { Accepted = true, IsCorrect = false, AlreadyAnswered = false, PointsAwarded = 0, Message = "Incorrect answer." };
@@ -170,7 +175,7 @@ public class SessionService : ISessionService
         var elapsed = Math.Max((DateTime.UtcNow - round.StartedAt).TotalSeconds, 0);
         var points = _scoreCalculator.Calculate(settings.RoundDurationSeconds, elapsed);
 
-        var player = lobby.ActivePlayers().First(x => x.PlayerId == request.PlayerId);
+        var player = activePlayers.First(x => x.PlayerId == request.PlayerId);
 
         try
         {
@@ -247,11 +252,8 @@ public class SessionService : ISessionService
             .FirstOrDefaultAsync(x => x.SessionId == sessionId, ct)
         ?? throw new NotFoundException("Session not found.");
 
-    private async Task<LobbyEntity> GetLobbyWithPlayersAsync(string normalizedCode, CancellationToken ct) =>
-        await _dbContext.Lobbies
-            .Include(x => x.LobbyPlayers)
-            .FirstOrDefaultAsync(x => x.Code == normalizedCode, ct)
-        ?? throw new NotFoundException("Lobby not found.");
+    private Task<LobbyEntity> GetLobbyWithPlayersAsync(string normalizedCode, CancellationToken ct)
+        => _dbContext.Lobbies.GetLobbyWithPlayersAsync(normalizedCode, ct);
 
     private static void ValidateSessionStart(LobbyEntity lobby, StartSessionRequest request, ILogger logger)
     {
@@ -339,22 +341,4 @@ public class SessionService : ISessionService
     private static SubmitAnswerResponse AlreadyAnswered() =>
         new() { Accepted = true, IsCorrect = true, AlreadyAnswered = true, PointsAwarded = 0, Message = "Player has already answered this round correctly." };
 
-    private static bool IsAnswerCorrect(string guess, string titleNorm, string artistNorm)
-    {
-        if (string.Equals(guess, titleNorm, StringComparison.Ordinal))
-            return true;
-
-        if (string.Equals(guess, artistNorm, StringComparison.Ordinal))
-            return true;
-
-        var artistTitle = $"{artistNorm} {titleNorm}";
-        if (string.Equals(guess, artistTitle, StringComparison.Ordinal))
-            return true;
-
-        var titleArtist = $"{titleNorm} {artistNorm}";
-        if (string.Equals(guess, titleArtist, StringComparison.Ordinal))
-            return true;
-
-        return false;
-    }
 }

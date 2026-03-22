@@ -5,6 +5,7 @@ using Woah.Api.Exceptions;
 using Woah.Api.Infrastructure.Persistence;
 using Woah.Api.Infrastructure.Persistence.Models;
 using Woah.Api.Services.Notifications;
+using Woah.Api.Services.Playlist;
 
 namespace Woah.Api.Services.Lobby;
 
@@ -12,13 +13,15 @@ public class LobbyService : ILobbyService
 {
     private readonly WoahDbContext _dbContext;
     private readonly ILobbyCodeGenerator _codeGenerator;
+    private readonly ILobbyPlaylistStore _playlistStore;
     private readonly IGameNotifier _notifier;
     private readonly ILogger<LobbyService> _logger;
 
-    public LobbyService(WoahDbContext dbContext, ILobbyCodeGenerator codeGenerator, IGameNotifier notifier, ILogger<LobbyService> logger)
+    public LobbyService(WoahDbContext dbContext, ILobbyCodeGenerator codeGenerator, ILobbyPlaylistStore playlistStore, IGameNotifier notifier, ILogger<LobbyService> logger)
     {
         _dbContext = dbContext;
         _codeGenerator = codeGenerator;
+        _playlistStore = playlistStore;
         _notifier = notifier;
         _logger = logger;
     }
@@ -38,7 +41,6 @@ public class LobbyService : ILobbyService
             Status = LobbyStatus.Waiting,
             CreatedAt = now,
             HostPlayerId = host.PlayerId,
-            HostPlayer = host,
             MaxPlayers = request.MaxPlayers
         };
 
@@ -46,8 +48,6 @@ public class LobbyService : ILobbyService
         {
             LobbyId = lobby.LobbyId,
             PlayerId = host.PlayerId,
-            Lobby = lobby,
-            Player = host,
             Nick = nick,
             JoinedAt = now
         };
@@ -56,9 +56,7 @@ public class LobbyService : ILobbyService
         {
             PlaylistId = Guid.NewGuid(),
             OwnerPlayerId = host.PlayerId,
-            OwnerPlayer = host,
             Name = $"Lobby {code}",
-            Market = "PL",
             CreatedAt = now
         };
 
@@ -111,8 +109,6 @@ public class LobbyService : ILobbyService
         {
             LobbyId = lobby.LobbyId,
             PlayerId = player.PlayerId,
-            Lobby = lobby,
-            Player = player,
             Nick = nick,
             JoinedAt = now
         };
@@ -191,6 +187,7 @@ public class LobbyService : ILobbyService
                 m.LeftAt = now;
 
             lobby.Status = LobbyStatus.Finished;
+            _playlistStore.Clear(lobby.Code);
             _logger.LogInformation("Host {PlayerId} left lobby {LobbyCode} — lobby closed", request.PlayerId, lobby.Code);
         }
         else
@@ -213,11 +210,8 @@ public class LobbyService : ILobbyService
         };
     }
 
-    private async Task<LobbyEntity> GetLobbyWithPlayersAsync(string normalizedCode, CancellationToken ct) =>
-        await _dbContext.Lobbies
-            .Include(x => x.LobbyPlayers)
-            .FirstOrDefaultAsync(x => x.Code == normalizedCode, ct)
-        ?? throw new NotFoundException("Lobby not found.");
+    private Task<LobbyEntity> GetLobbyWithPlayersAsync(string normalizedCode, CancellationToken ct)
+        => _dbContext.Lobbies.GetLobbyWithPlayersAsync(normalizedCode, ct);
 
     private async Task<string> GenerateUniqueCodeAsync(CancellationToken ct)
     {

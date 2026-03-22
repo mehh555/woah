@@ -39,6 +39,7 @@ builder.Services.AddScoped<ILobbyService, LobbyService>();
 builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<ILobbyPlaylistService, LobbyPlaylistService>();
 builder.Services.AddSingleton<IAnswerNormalizer, AnswerNormalizer>();
+builder.Services.AddSingleton<IAnswerEvaluator, AnswerEvaluator>();
 builder.Services.AddSingleton<IScoreCalculator, LinearScoreCalculator>();
 builder.Services.AddScoped<ISessionProgressEngine, SessionProgressEngine>();
 builder.Services.AddScoped<ISessionStateBuilder, SessionStateBuilder>();
@@ -49,6 +50,7 @@ builder.Services.AddHostedService<StaleGameCleanupService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.Configure<ItunesSettings>(builder.Configuration.GetSection(ItunesSettings.SectionName));
 builder.Services.AddHttpClient<ItunesApiClient>(client =>
 {
     client.BaseAddress = new Uri("https://itunes.apple.com/");

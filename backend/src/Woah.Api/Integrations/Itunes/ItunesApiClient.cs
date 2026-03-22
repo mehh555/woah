@@ -1,16 +1,19 @@
 ﻿using System.Net.Http.Json;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Options;
 
 namespace Woah.Api.Integrations.Itunes;
 
 public class ItunesApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly string _market;
     private readonly ILogger<ItunesApiClient> _logger;
 
-    public ItunesApiClient(HttpClient httpClient, ILogger<ItunesApiClient> logger)
+    public ItunesApiClient(HttpClient httpClient, IOptions<ItunesSettings> settings, ILogger<ItunesApiClient> logger)
     {
         _httpClient = httpClient;
+        _market = settings.Value.Market;
         _logger = logger;
     }
 
@@ -24,7 +27,7 @@ public class ItunesApiClient
         var url = QueryHelpers.AddQueryString("search", new Dictionary<string, string?>
         {
             ["term"] = term,
-            ["country"] = "PL",
+            ["country"] = _market,
             ["media"] = "music",
             ["entity"] = "song",
             ["limit"] = "12"
@@ -68,7 +71,7 @@ public class ItunesApiClient
         var url = QueryHelpers.AddQueryString("lookup", new Dictionary<string, string?>
         {
             ["id"] = trackId.ToString(),
-            ["country"] = "PL",
+            ["country"] = _market,
             ["entity"] = "song"
         });
 

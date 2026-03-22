@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Woah.Api.Domain;
 using Woah.Api.Infrastructure.Persistence;
+using Woah.Api.Services.Playlist;
 
 namespace Woah.Api.Services.Cleanup;
 
@@ -11,11 +12,13 @@ public class StaleGameCleanupService : BackgroundService
     private static readonly TimeSpan StaleSessionThreshold = TimeSpan.FromMinutes(15);
 
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILobbyPlaylistStore _playlistStore;
     private readonly ILogger<StaleGameCleanupService> _logger;
 
-    public StaleGameCleanupService(IServiceScopeFactory scopeFactory, ILogger<StaleGameCleanupService> logger)
+    public StaleGameCleanupService(IServiceScopeFactory scopeFactory, ILobbyPlaylistStore playlistStore, ILogger<StaleGameCleanupService> logger)
     {
         _scopeFactory = scopeFactory;
+        _playlistStore = playlistStore;
         _logger = logger;
     }
 
@@ -69,6 +72,8 @@ public class StaleGameCleanupService : BackgroundService
 
             foreach (var member in lobby.LobbyPlayers.Where(m => m.LeftAt == null))
                 member.LeftAt = DateTime.UtcNow;
+
+            _playlistStore.Clear(lobby.Code);
 
             _logger.LogInformation("Closed stale lobby {LobbyCode} (created {CreatedAt})", lobby.Code, lobby.CreatedAt);
         }
