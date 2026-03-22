@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getSession, submitAnswer, advanceSession, returnToLobby } from "../api/client.js";
 import { useSession } from "../context/SessionContext.jsx";
 import { usePolling } from "../hooks/usePolling.js";
-import { useGameHub } from "../hooks/useGameHub.js";
+import { useSessionSubscription } from "../hooks/useSessionSubscription.js";
 import Timer from "../components/Timer.jsx";
 import RoundSummaryModal from "../components/RoundSummaryModal.jsx";
 
@@ -42,9 +42,9 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
     const audioRef = useRef(null);
 
     const fetchSession = useCallback(() => getSession(session.sessionId), [session.sessionId]);
-    const { data: gameState, error, refetch } = usePolling(fetchSession, 10000);
 
-    const { invoke, connected } = useGameHub({
+    // SignalR subscription with symmetric Join/Leave
+    const { connected } = useSessionSubscription(session.sessionId, {
         SessionUpdated: () => refetch(),
         PlayerAnsweredCorrectly: () => refetch(),
         ReturnToLobby: ({ lobbyCode, playlistId }) => {
@@ -56,13 +56,13 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
             }));
             onReturnToLobby();
         },
-    }, [refetch, setSession, onReturnToLobby]);
+    });
 
-    useEffect(() => {
-        if (connected && session.sessionId) {
-            invoke("JoinSession", session.sessionId);
-        }
-    }, [connected, invoke, session.sessionId]);
+    // Polling as fallback — disabled when SignalR is connected
+    const { data: gameState, error, refetch } = usePolling(fetchSession, {
+        interval: 10000,
+        enabled: !connected,
+    });
 
     useEffect(() => {
         if (!gameState?.currentRound) return;
@@ -82,8 +82,6 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
         const round = gameState.currentRound;
         if (round.correctTitlePlayerIds?.includes(session.playerId) && !myTitleGuessed) {
             setMyTitleGuessed(true);
-            // title is only revealed to player after guessing — but we don't have it from API during Playing
-            // so we keep the "guessed" flag without text until round is Revealed
         }
         if (round.correctArtistPlayerIds?.includes(session.playerId) && !myArtistGuessed) {
             setMyArtistGuessed(true);
