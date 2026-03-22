@@ -21,11 +21,15 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddGameRateLimiting();
 
+var allowedOrigins = builder.Configuration
+    .GetSection("AllowedCorsOrigins")
+    .Get<string[]>() ?? ["http://localhost:5173"];
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -35,10 +39,8 @@ builder.Services.AddCors(options =>
 builder.Services.AddDbContext<WoahDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("WoahDb")));
 
-// TimeProvider (Filar 3)
 builder.Services.AddSingleton(TimeProvider.System);
 
-// Services
 builder.Services.AddScoped<ILobbyService, LobbyService>();
 builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<ILobbyPlaylistService, LobbyPlaylistService>();
@@ -68,6 +70,12 @@ builder.Services.AddHealthChecks()
     .AddDbContextCheck<WoahDbContext>("db", tags: new[] { "ready" });
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<WoahDbContext>();
+    db.Database.Migrate();
+}
 
 app.UseSwagger();
 app.UseSwaggerUI();

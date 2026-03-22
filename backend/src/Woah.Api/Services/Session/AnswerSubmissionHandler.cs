@@ -76,7 +76,7 @@ public class AnswerSubmissionHandler : IAnswerSubmissionHandler
 
 		var settings = SessionSettings.Parse(session.SettingsJson);
 		var elapsed = Math.Max((now - round.StartedAt).TotalSeconds, 0);
-		var pointsPerMatch = _scoreCalculator.Calculate(settings.RoundDurationSeconds, elapsed);
+		var basePoints = _scoreCalculator.Calculate(settings.RoundDurationSeconds, elapsed);
 		var player = activePlayers.First(x => x.PlayerId == request.PlayerId);
 
 		bool newTitle, newArtist;
@@ -101,8 +101,10 @@ public class AnswerSubmissionHandler : IAnswerSubmissionHandler
 				return new SubmitAnswerResponse { Accepted = true, Message = "Incorrect answer." };
 			}
 
-			var matchCount = (newTitle ? 1 : 0) + (newArtist ? 1 : 0);
-			points = pointsPerMatch * matchCount;
+			// Title = full points, Artist = half points (minimum 1)
+			var titlePoints = newTitle ? basePoints : 0;
+			var artistPoints = newArtist ? Math.Max(basePoints / 2, 1) : 0;
+			points = titlePoints + artistPoints;
 
 			try
 			{

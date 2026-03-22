@@ -6,12 +6,29 @@ namespace Woah.Api.Services.Session;
 
 public class AnswerNormalizer : IAnswerNormalizer
 {
+    private static readonly Dictionary<char, char> ManualReplacements = new()
+    {
+        ['ł'] = 'l',
+        ['đ'] = 'd',
+        ['ø'] = 'o',
+        ['ß'] = 's',
+    };
+
     public string Normalize(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
             return string.Empty;
 
-        var decomposed = value.Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD);
+        var lowered = value.Trim().ToLowerInvariant();
+
+        // Handle characters that don't decompose in Unicode (e.g. ł → l)
+        var preProcessed = new StringBuilder(lowered.Length);
+        foreach (var ch in lowered)
+        {
+            preProcessed.Append(ManualReplacements.TryGetValue(ch, out var replacement) ? replacement : ch);
+        }
+
+        var decomposed = preProcessed.ToString().Normalize(NormalizationForm.FormD);
         var builder = new StringBuilder();
 
         foreach (var ch in decomposed)
