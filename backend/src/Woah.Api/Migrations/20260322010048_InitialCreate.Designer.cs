@@ -12,7 +12,7 @@ using Woah.Api.Infrastructure.Persistence;
 namespace Woah.Api.Migrations
 {
     [DbContext(typeof(WoahDbContext))]
-    [Migration("20260321215132_InitialCreate")]
+    [Migration("20260322010048_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -204,6 +204,11 @@ namespace Woah.Api.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("AnswerArtist")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("AnswerArtistNorm")
                         .IsRequired()
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");

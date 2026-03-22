@@ -205,6 +205,11 @@ namespace Woah.Api.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
 
+                    b.Property<string>("AnswerArtistNorm")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
                     b.Property<string>("AnswerNorm")
                         .IsRequired()
                         .HasMaxLength(300)

@@ -136,6 +136,7 @@ namespace Woah.Api.Migrations
                     AnswerTitle = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: false),
                     AnswerArtist = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: false),
                     AnswerNorm = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: false),
+                    AnswerArtistNorm = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: false),
                     ArtworkUrl = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
                     ItunesTrackId = table.Column<long>(type: "bigint", nullable: true),
                     StartedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
