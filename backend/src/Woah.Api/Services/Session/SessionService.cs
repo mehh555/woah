@@ -160,7 +160,7 @@ public class SessionService : ISessionService
             return AlreadyAnswered();
         }
 
-        if (!string.Equals(_normalizer.Normalize(request.Answer), round.AnswerNorm, StringComparison.Ordinal))
+        if (!IsAnswerCorrect(_normalizer.Normalize(request.Answer), round.AnswerNorm, round.AnswerArtistNorm))
         {
             _logger.LogDebug("Incorrect answer from {PlayerId} in session {SessionId} round {RoundNo}", request.PlayerId, sessionId, round.RoundNo);
             return new SubmitAnswerResponse { Accepted = true, IsCorrect = false, AlreadyAnswered = false, PointsAwarded = 0, Message = "Incorrect answer." };
@@ -310,6 +310,7 @@ public class SessionService : ISessionService
                 AnswerTitle = tracks[i].Title,
                 AnswerArtist = tracks[i].Artist,
                 AnswerNorm = normalizer.Normalize(tracks[i].Title),
+                AnswerArtistNorm = normalizer.Normalize(tracks[i].Artist),
                 ArtworkUrl = tracks[i].ArtworkUrl,
                 ItunesTrackId = tracks[i].TrackId,
                 StartedAt = now,
@@ -337,4 +338,23 @@ public class SessionService : ISessionService
 
     private static SubmitAnswerResponse AlreadyAnswered() =>
         new() { Accepted = true, IsCorrect = true, AlreadyAnswered = true, PointsAwarded = 0, Message = "Player has already answered this round correctly." };
+
+    private static bool IsAnswerCorrect(string guess, string titleNorm, string artistNorm)
+    {
+        if (string.Equals(guess, titleNorm, StringComparison.Ordinal))
+            return true;
+
+        if (string.Equals(guess, artistNorm, StringComparison.Ordinal))
+            return true;
+
+        var artistTitle = $"{artistNorm} {titleNorm}";
+        if (string.Equals(guess, artistTitle, StringComparison.Ordinal))
+            return true;
+
+        var titleArtist = $"{titleNorm} {artistNorm}";
+        if (string.Equals(guess, titleArtist, StringComparison.Ordinal))
+            return true;
+
+        return false;
+    }
 }

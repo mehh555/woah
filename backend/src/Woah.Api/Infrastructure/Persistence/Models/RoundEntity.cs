@@ -18,6 +18,7 @@ public class RoundEntity
     public string AnswerTitle { get; set; } = default!;
     public string AnswerArtist { get; set; } = default!;
     public string AnswerNorm { get; set; } = default!;
+    public string AnswerArtistNorm { get; set; } = default!;
     public string? ArtworkUrl { get; set; }
     public long? ItunesTrackId { get; set; }
 

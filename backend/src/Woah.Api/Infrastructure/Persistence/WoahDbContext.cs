@@ -122,6 +122,10 @@ public class WoahDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(300);
 
+            e.Property(r => r.AnswerArtistNorm)
+                .IsRequired()
+                .HasMaxLength(300);
+
             e.Property(r => r.AnswerArtist)
                 .IsRequired()
                 .HasMaxLength(300);
