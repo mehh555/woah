@@ -14,22 +14,21 @@ function MaskedWord({ mask, label }) {
             <div className="mask-label">{label}</div>
             <div className="word-mask">
                 {chars.map((ch, i) =>
-                    ch === " " ? (
-                        <span key={i} className="mask-space" />
-                    ) : (
-                        <span key={i} className="mask-char">_</span>
-                    )
+                    ch === " "
+                        ? <span key={i} className="mask-space" />
+                        : <span key={i} className="mask-char">_</span>
                 )}
             </div>
         </div>
     );
 }
 
-export default function GameScreen() {
+export default function GameScreen({ onExit }) {
     const { session, clearSession } = useSession();
     const [guess, setGuess] = useState("");
     const [feedback, setFeedback] = useState(null);
-    const [myGuessed, setMyGuessed] = useState(false);
+    const [myTitleGuessed, setMyTitleGuessed] = useState(false);
+    const [myArtistGuessed, setMyArtistGuessed] = useState(false);
     const prevRoundRef = useRef(null);
     const inputRef = useRef(null);
     const audioRef = useRef(null);
@@ -52,7 +51,8 @@ export default function GameScreen() {
         if (!gameState?.currentRound) return;
         const roundId = gameState.currentRound.roundId;
         if (prevRoundRef.current && prevRoundRef.current !== roundId) {
-            setMyGuessed(false);
+            setMyTitleGuessed(false);
+            setMyArtistGuessed(false);
             setFeedback(null);
             setGuess("");
         }
@@ -62,9 +62,7 @@ export default function GameScreen() {
     useEffect(() => {
         if (!gameState?.currentRound?.previewUrl || !audioRef.current) return;
         const audio = audioRef.current;
-        const isPlaying = gameState.currentRound.state === "Playing";
-
-        if (isPlaying) {
+        if (gameState.currentRound.state === "Playing") {
             audio.src = gameState.currentRound.previewUrl;
             audio.currentTime = 0;
             audio.play().catch(() => { });
@@ -82,16 +80,25 @@ export default function GameScreen() {
     }, [gameState, session.playerId, clearSession]);
 
     async function handleGuess() {
-        if (!guess.trim() || myGuessed) return;
+        if (!guess.trim()) return;
+        if (myTitleGuessed && myArtistGuessed) return;
         try {
             const res = await submitAnswer(session.sessionId, session.playerId, guess.trim());
-            if (res.isCorrect) {
-                setFeedback({ type: "correct", msg: `🎉 Brawo! +${res.pointsAwarded} pkt!` });
-                setMyGuessed(true);
+            if (res.titleCorrect && res.artistCorrect) {
+                setFeedback({ type: "correct", msg: `🎉 Tytuł i artysta! +${res.pointsAwarded} pkt!` });
+                setMyTitleGuessed(true);
+                setMyArtistGuessed(true);
+            } else if (res.titleCorrect) {
+                setFeedback({ type: "correct", msg: `🎵 Tytuł trafiony! +${res.pointsAwarded} pkt!` });
+                setMyTitleGuessed(true);
+            } else if (res.artistCorrect) {
+                setFeedback({ type: "correct", msg: `🎤 Artysta trafiony! +${res.pointsAwarded} pkt!` });
+                setMyArtistGuessed(true);
             } else {
                 setFeedback({ type: "wrong", msg: "❌ Nie tym razem..." });
                 setTimeout(() => setFeedback(null), 2000);
             }
+            refetch();
         } catch (e) {
             setFeedback({ type: "wrong", msg: "⚠️ " + e.message });
             setTimeout(() => setFeedback(null), 2000);
@@ -106,6 +113,11 @@ export default function GameScreen() {
         } catch (e) {
             alert("Błąd: " + e.message);
         }
+    }
+
+    function handleBackToMenu() {
+        clearSession();
+        onExit();
     }
 
     if (!session?.sessionId) {
@@ -124,41 +136,99 @@ export default function GameScreen() {
     const isRoundPlaying = currentRound?.state === "Playing";
     const isRoundRevealed = currentRound?.state === "Revealed";
     const sorted = [...(leaderboard || [])].sort((a, b) => b.score - a.score);
+    const bothGuessed = myTitleGuessed && myArtistGuessed;
+    const canStillGuess = isRoundPlaying && !bothGuessed;
 
-    return (
-        <div className="game-screen">
-            <audio ref={audioRef} />
+    // ─── FINISHED SCREEN ─────────────────────────────────
+    if (isFinished) {
+        const winner = sorted[0];
+        return (
+            <div className="game-screen">
+                <audio ref={audioRef} />
+                <div className="game-top">
+                    <div className="finish-trophy">🏆</div>
+                    <div className="finish-title">Koniec gry!</div>
+                    {winner && (
+                        <div className="finish-winner">
+                            Wygrywa <strong>{winner.nick}</strong> z wynikiem <strong>{winner.score} pkt</strong>
+                        </div>
+                    )}
 
-            {(isRoundRevealed || isFinished) && (
+                    <div className="finish-leaderboard">
+                        <table className="leaderboard-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Gracz</th>
+                                    <th>Trafienia</th>
+                                    <th>Punkty</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {sorted.map((p, i) => (
+                                    <tr key={p.playerId} className={p.playerId === session.playerId ? "row-me" : ""}>
+                                        <td className="rank">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</td>
+                                        <td className="nick">{p.nick}</td>
+                                        <td className="hits">{p.correctAnswers}</td>
+                                        <td className="score">{p.score} pkt</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <button className="btn btn-primary" onClick={handleBackToMenu}>
+                        ← Wróć do menu
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // ─── ROUND SUMMARY MODAL ─────────────────────────────
+    if (isRoundRevealed) {
+        return (
+            <div className="game-screen">
+                <audio ref={audioRef} />
                 <RoundSummaryModal
                     round={currentRound}
                     leaderboard={sorted}
                     isHost={session.isHost}
                     onNext={handleAdvance}
                 />
-            )}
+            </div>
+        );
+    }
 
+    // ─── PLAYING UI ──────────────────────────────────────
+    return (
+        <div className="game-screen">
+            <audio ref={audioRef} />
             <div className="game-top">
-                <div className="round-badge">
-                    Runda {currentRound?.roundNo ?? "?"} / {totalRounds}
-                </div>
+                <div className="round-badge">Runda {currentRound?.roundNo ?? "?"} / {totalRounds}</div>
 
                 {isRoundPlaying && currentRound?.endsAt && (
                     <Timer endsAt={currentRound.endsAt} total={roundDurationSeconds} />
                 )}
 
                 <div className="game-mask-area">
-                    <MaskedWord mask={currentRound?.answerArtistMask} label="Artysta" />
-                    <div className="mask-divider">—</div>
-                    <MaskedWord mask={currentRound?.answerTitleMask} label="Tytuł" />
+                    <MaskedWord mask={currentRound?.titleMask} label="Tytuł" />
+                    <MaskedWord mask={currentRound?.artistMask} label="Artysta" />
                 </div>
 
-                {!myGuessed && isRoundPlaying && (
+                <div className="guess-status">
+                    {myTitleGuessed && <span className="guess-tag correct">✓ Tytuł</span>}
+                    {myArtistGuessed && <span className="guess-tag correct">✓ Artysta</span>}
+                    {!myTitleGuessed && isRoundPlaying && <span className="guess-tag pending">? Tytuł</span>}
+                    {!myArtistGuessed && isRoundPlaying && <span className="guess-tag pending">? Artysta</span>}
+                </div>
+
+                {canStillGuess && (
                     <div className="guess-row">
                         <input
                             ref={inputRef}
                             className="input"
-                            placeholder="Wpisz tytuł, artystę lub oba…"
+                            placeholder="Wpisz tytuł lub artystę…"
                             value={guess}
                             onChange={e => setGuess(e.target.value)}
                             onKeyDown={e => e.key === "Enter" && handleGuess()}
@@ -170,11 +240,11 @@ export default function GameScreen() {
                     </div>
                 )}
 
-                {myGuessed && isRoundPlaying && (
-                    <div className="feedback correct">🎉 Już zgadłeś! Czekaj na koniec rundy…</div>
+                {bothGuessed && isRoundPlaying && (
+                    <div className="feedback correct">🎉 Zgadłeś wszystko! Czekaj na koniec rundy…</div>
                 )}
 
-                {feedback && !myGuessed && (
+                {feedback && !bothGuessed && (
                     <div className={`feedback ${feedback.type}`}>{feedback.msg}</div>
                 )}
             </div>
@@ -190,12 +260,7 @@ export default function GameScreen() {
                     </thead>
                     <tbody>
                         {sorted.map((p, i) => (
-                            <tr key={p.playerId}
-                                className={[
-                                    p.playerId === session.playerId ? "row-me" : "",
-                                    currentRound?.correctPlayerIds?.includes(p.playerId) ? "row-correct" : ""
-                                ].filter(Boolean).join(" ")}
-                            >
+                            <tr key={p.playerId} className={p.playerId === session.playerId ? "row-me" : ""}>
                                 <td className="rank">{i + 1}</td>
                                 <td className="nick">{p.nick}</td>
                                 <td className="score">{p.score} pkt</td>
