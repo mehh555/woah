@@ -21,7 +21,6 @@ public class AnswerNormalizer : IAnswerNormalizer
 
         var lowered = value.Trim().ToLowerInvariant();
 
-        // Handle characters that don't decompose in Unicode (e.g. ł → l)
         var preProcessed = new StringBuilder(lowered.Length);
         foreach (var ch in lowered)
         {
