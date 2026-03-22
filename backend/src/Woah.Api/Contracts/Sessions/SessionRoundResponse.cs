@@ -13,7 +13,8 @@ public class SessionRoundResponse
     public string? AnswerArtist { get; set; }
     public string? ArtworkUrl { get; set; }
     public string? ItunesUrl { get; set; }
-    public string AnswerMask { get; set; } = default!;
+    public string AnswerTitleMask { get; set; } = default!;
+    public string AnswerArtistMask { get; set; } = default!;
     public int CorrectAnswerCount { get; set; }
     public List<Guid> CorrectPlayerIds { get; set; } = new();
 }

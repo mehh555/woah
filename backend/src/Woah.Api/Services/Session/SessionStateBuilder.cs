@@ -63,7 +63,8 @@ public class SessionStateBuilder : ISessionStateBuilder
             ItunesUrl = isRevealed && round.ItunesTrackId.HasValue
                 ? $"https://music.apple.com/pl/song/{round.ItunesTrackId.Value}"
                 : null,
-            AnswerMask = BuildMask(round.AnswerTitle),
+            AnswerTitleMask = BuildMask(round.AnswerTitle),
+            AnswerArtistMask = BuildMask(round.AnswerArtist),
             CorrectAnswerCount = correctIds.Count,
             CorrectPlayerIds = correctIds
         };
