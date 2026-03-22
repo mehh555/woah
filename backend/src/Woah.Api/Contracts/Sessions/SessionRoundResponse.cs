@@ -17,4 +17,6 @@ public class SessionRoundResponse
     public string AnswerArtistMask { get; set; } = default!;
     public int CorrectAnswerCount { get; set; }
     public List<Guid> CorrectPlayerIds { get; set; } = new();
+    public List<Guid> CorrectTitlePlayerIds { get; set; } = new();
+    public List<Guid> CorrectArtistPlayerIds { get; set; } = new();
 }

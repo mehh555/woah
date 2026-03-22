@@ -12,4 +12,6 @@ public class RoundCorrectAnswerEntity
 
     public DateTime AnsweredAt { get; set; }
     public int Points { get; set; }
+    public bool GotTitle { get; set; }
+    public bool GotArtist { get; set; }
 }

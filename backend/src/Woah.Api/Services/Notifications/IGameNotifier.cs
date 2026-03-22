@@ -6,4 +6,5 @@ public interface IGameNotifier
     Task SessionStarted(string lobbyCode, Guid sessionId);
     Task SessionUpdated(Guid sessionId);
     Task PlayerAnsweredCorrectly(Guid sessionId, Guid playerId, string nick, int points);
+    Task ReturnToLobby(Guid sessionId, string lobbyCode, Guid playlistId);
 }

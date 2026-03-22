@@ -23,4 +23,7 @@ public class GameNotifier : IGameNotifier
 
     public Task PlayerAnsweredCorrectly(Guid sessionId, Guid playerId, string nick, int points)
         => _hub.Clients.Group($"session:{sessionId}").SendAsync("PlayerAnsweredCorrectly", new { playerId, nick, points });
+
+    public Task ReturnToLobby(Guid sessionId, string lobbyCode, Guid playlistId)
+        => _hub.Clients.Group($"session:{sessionId}").SendAsync("ReturnToLobby", new { lobbyCode, playlistId });
 }

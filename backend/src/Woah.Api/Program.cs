@@ -20,6 +20,7 @@ builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
+builder.Services.AddGameRateLimiting();
 
 builder.Services.AddCors(options =>
 {
@@ -41,6 +42,8 @@ builder.Services.AddScoped<ILobbyPlaylistService, LobbyPlaylistService>();
 builder.Services.AddSingleton<IAnswerNormalizer, AnswerNormalizer>();
 builder.Services.AddSingleton<IAnswerEvaluator, AnswerEvaluator>();
 builder.Services.AddSingleton<IScoreCalculator, LinearScoreCalculator>();
+builder.Services.AddScoped<ISessionFactory, SessionFactory>();
+builder.Services.AddScoped<ISessionStartValidator, SessionStartValidator>();
 builder.Services.AddScoped<ISessionProgressEngine, SessionProgressEngine>();
 builder.Services.AddScoped<ISessionStateBuilder, SessionStateBuilder>();
 builder.Services.AddScoped<IGameNotifier, GameNotifier>();
@@ -73,6 +76,7 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseCors();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();

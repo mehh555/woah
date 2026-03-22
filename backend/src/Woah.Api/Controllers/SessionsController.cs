@@ -1,7 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Woah.Api.Contracts.Sessions;
+using Woah.Api.Middleware;
 using Woah.Api.Services.Session;
-
 namespace Woah.Api.Controllers;
 
 [ApiController]
@@ -23,12 +24,18 @@ public class SessionsController : ControllerBase
         => Ok(await _sessionService.GetSessionStateAsync(sessionId, ct));
 
     [HttpPost("{sessionId:guid}/answer")]
+    [EnableRateLimiting(RateLimitingConfiguration.SubmitAnswer)]
     public async Task<ActionResult<SubmitAnswerResponse>> SubmitAnswer(
-        [FromRoute] Guid sessionId, [FromBody] SubmitAnswerRequest request, CancellationToken ct)
+         [FromRoute] Guid sessionId, [FromBody] SubmitAnswerRequest request, CancellationToken ct)
         => Ok(await _sessionService.SubmitAnswerAsync(sessionId, request, ct));
 
     [HttpPost("{sessionId:guid}/advance")]
     public async Task<ActionResult<GetSessionStateResponse>> AdvanceSession(
         [FromRoute] Guid sessionId, [FromBody] AdvanceSessionRequest request, CancellationToken ct)
         => Ok(await _sessionService.AdvanceSessionAsync(sessionId, request, ct));
+
+    [HttpPost("{sessionId:guid}/return-to-lobby")]
+    public async Task<ActionResult<ReturnToLobbyResponse>> ReturnToLobby(
+        [FromRoute] Guid sessionId, [FromBody] ReturnToLobbyRequest request, CancellationToken ct)
+        => Ok(await _sessionService.ReturnToLobbyAsync(sessionId, request, ct));
 }

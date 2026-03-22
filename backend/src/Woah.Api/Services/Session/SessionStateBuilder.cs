@@ -42,10 +42,7 @@ public class SessionStateBuilder : ISessionStateBuilder
 
     private static SessionRoundResponse MapRound(RoundEntity round)
     {
-        var correctIds = round.CorrectAnswers
-            .Select(x => x.PlayerId)
-            .ToList();
-
+        var answers = round.CorrectAnswers.ToList();
         var isRevealed = round.State is RoundState.Revealed or RoundState.Finished;
 
         return new SessionRoundResponse
@@ -65,8 +62,10 @@ public class SessionStateBuilder : ISessionStateBuilder
                 : null,
             AnswerTitleMask = BuildMask(round.AnswerTitle),
             AnswerArtistMask = BuildMask(round.AnswerArtist),
-            CorrectAnswerCount = correctIds.Count,
-            CorrectPlayerIds = correctIds
+            CorrectAnswerCount = answers.Count,
+            CorrectPlayerIds = answers.Select(x => x.PlayerId).ToList(),
+            CorrectTitlePlayerIds = answers.Where(x => x.GotTitle).Select(x => x.PlayerId).ToList(),
+            CorrectArtistPlayerIds = answers.Where(x => x.GotArtist).Select(x => x.PlayerId).ToList()
         };
     }
 
