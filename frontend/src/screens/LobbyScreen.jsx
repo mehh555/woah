@@ -12,7 +12,6 @@ export default function LobbyScreen({ onStart, onExit }) {
 
     const fetchLobby = useCallback(() => getLobby(session.lobbyCode), [session.lobbyCode]);
 
-    // SignalR subscription with symmetric Join/Leave
     const { connected } = useLobbySubscription(session.lobbyCode, {
         LobbyUpdated: () => refetch(),
         SessionStarted: ({ sessionId }) => {
@@ -21,7 +20,6 @@ export default function LobbyScreen({ onStart, onExit }) {
         },
     });
 
-    // Polling as fallback — disabled when SignalR is connected
     const { data: lobby, error, refetch } = usePolling(fetchLobby, {
         interval: 10000,
         enabled: !connected,
@@ -132,9 +130,7 @@ export default function LobbyScreen({ onStart, onExit }) {
                 ))}
             </div>
 
-            {amIHost && (
-                <PlaylistPanel lobbyCode={session.lobbyCode} hostPlayerId={session.playerId} />
-            )}
+            <PlaylistPanel lobbyCode={session.lobbyCode} playerId={session.playerId} />
 
             <div className="lobby-actions">
                 {amIHost ? (

@@ -9,7 +9,7 @@ async function request(method, path, body) {
 
     if (!res.ok) {
         const err = await res.json().catch(() => ({ message: res.statusText }));
-        throw new Error(err.message || `HTTP ${res.status}`);
+        throw new Error(err.detail || err.message || `HTTP ${res.status}`);
     }
 
     if (res.status === 204) return null;
@@ -40,12 +40,12 @@ export function searchTracks(term) {
     return request("GET", `/itunes/search?term=${encodeURIComponent(term)}`);
 }
 
-export function addTrack(lobbyCode, hostPlayerId, trackId) {
-    return request("POST", `/lobbies/${lobbyCode}/playlist/tracks`, { hostPlayerId, trackId });
+export function addTrack(lobbyCode, playerId, trackId) {
+    return request("POST", `/lobbies/${lobbyCode}/playlist/tracks`, { playerId, trackId });
 }
 
-export function removeTrack(lobbyCode, hostPlayerId, trackId) {
-    return request("DELETE", `/lobbies/${lobbyCode}/playlist/tracks/${trackId}`, { hostPlayerId });
+export function removeTrack(lobbyCode, playerId, trackId) {
+    return request("DELETE", `/lobbies/${lobbyCode}/playlist/tracks/${trackId}`, { playerId });
 }
 
 export function createSession(lobbyCode, hostPlayerId, playlistId, roundDurationSeconds = 10) {

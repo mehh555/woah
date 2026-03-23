@@ -1,18 +1,21 @@
 import { useState, useEffect, useCallback } from "react";
 import { searchTracks, getPlaylist, addTrack, removeTrack } from "../api/client.js";
 
-export default function PlaylistPanel({ lobbyCode, hostPlayerId }) {
+export default function PlaylistPanel({ lobbyCode, playerId }) {
     const [query, setQuery] = useState("");
     const [results, setResults] = useState([]);
-    const [tracks, setTracks] = useState([]);
+    const [allTracks, setAllTracks] = useState([]);
     const [searching, setSearching] = useState(false);
     const [error, setError] = useState("");
     const [showResults, setShowResults] = useState(false);
 
+    const myTracks = allTracks.filter(t => t.addedByPlayerId === playerId);
+    const totalTracks = allTracks.length;
+
     const refreshPlaylist = useCallback(async () => {
         try {
             const res = await getPlaylist(lobbyCode);
-            setTracks(res.tracks || []);
+            setAllTracks(res.tracks || []);
         } catch { }
     }, [lobbyCode]);
 
@@ -36,7 +39,7 @@ export default function PlaylistPanel({ lobbyCode, hostPlayerId }) {
     async function handleAdd(trackId) {
         setError("");
         try {
-            await addTrack(lobbyCode, hostPlayerId, trackId);
+            await addTrack(lobbyCode, playerId, trackId);
             setResults(prev => prev.filter(t => t.trackId !== trackId));
             await refreshPlaylist();
         } catch (e) {
@@ -47,7 +50,7 @@ export default function PlaylistPanel({ lobbyCode, hostPlayerId }) {
     async function handleRemove(trackId) {
         setError("");
         try {
-            await removeTrack(lobbyCode, hostPlayerId, trackId);
+            await removeTrack(lobbyCode, playerId, trackId);
             await refreshPlaylist();
         } catch (e) {
             setError(e.message);
@@ -62,8 +65,8 @@ export default function PlaylistPanel({ lobbyCode, hostPlayerId }) {
     return (
         <div className="playlist-panel">
             <div className="playlist-header">
-                <span className="playlist-title">🎵 Playlista</span>
-                <span className="playlist-count">{tracks.length} / 20</span>
+                <span className="playlist-title">🎵 Twoje piosenki</span>
+                <span className="playlist-count">{myTracks.length} / 10 (łącznie {totalTracks})</span>
             </div>
 
             <div className="search-row">
@@ -106,9 +109,9 @@ export default function PlaylistPanel({ lobbyCode, hostPlayerId }) {
                 <div className="playlist-empty">Brak wyników wyszukiwania</div>
             )}
 
-            {tracks.length > 0 && (
+            {myTracks.length > 0 && (
                 <div className="playlist-tracks">
-                    {tracks.map((t, i) => (
+                    {myTracks.map((t, i) => (
                         <div key={t.trackId} className="track-row playlist-track-row">
                             <span className="track-number">{i + 1}</span>
                             <div className="track-info">
@@ -121,7 +124,7 @@ export default function PlaylistPanel({ lobbyCode, hostPlayerId }) {
                 </div>
             )}
 
-            {tracks.length === 0 && (
+            {myTracks.length === 0 && (
                 <div className="playlist-empty">Dodaj piosenki aby rozpocząć grę</div>
             )}
         </div>
