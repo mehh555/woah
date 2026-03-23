@@ -71,7 +71,6 @@ function AppInner() {
                             return;
                         }
                     } catch {
-                        // fall through to reset
                     }
                 }
 
