@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createLobby, joinLobby } from "../api/client.js";
 import { useSession } from "../context/SessionContext.jsx";
+import AboutModal from "../components/AboutModal.jsx";
 
 export default function StartScreen({ onEnter }) {
     const { setSession } = useSession();
@@ -10,6 +11,8 @@ export default function StartScreen({ onEnter }) {
     const [code, setCode] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [showAbout, setShowAbout] = useState(false);
+    const [showGoblinek, setShowGoblinek] = useState(false);
 
     async function handleCreate() {
         if (!nick.trim()) { setError("Wpisz nick!"); return; }
@@ -51,10 +54,18 @@ export default function StartScreen({ onEnter }) {
     return (
         <div className="start-screen">
             <div className="logo anim-fadeDown">
-                <div className="logo-title">woah</div>
-                <div className="logo-title">goblinek 10iq</div>
-                <div className="logo-sub">🎵 Zgadnij piosenkę!</div>
+                <div className="logo-title">Woah</div>
+                <div className="logo-sub">
+                    Honorable Mention —{" "}
+                    <span className="goblinek-trigger" onClick={() => setShowGoblinek(true)}>goblinek</span>
+                </div>
             </div>
+
+            {showGoblinek && (
+                <div className="modal-overlay" onClick={() => setShowGoblinek(false)}>
+                    <img src="/goblinek.png" alt="goblinek" className="goblinek-img anim-fadeUp" />
+                </div>
+            )}
 
             {!mode && (
                 <div className="mode-picker anim-fadeUp">
@@ -106,6 +117,12 @@ export default function StartScreen({ onEnter }) {
             )}
 
             {error && <div className="error-msg anim-fadeUp">⚠️ {error}</div>}
+
+            <button className="btn-link about-btn" onClick={() => setShowAbout(true)}>
+                ℹ️ O projekcie
+            </button>
+
+            {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
         </div>
     );
 }

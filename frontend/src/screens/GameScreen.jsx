@@ -37,13 +37,13 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
     const [feedback, setFeedback] = useState(null);
     const [myTitleGuessed, setMyTitleGuessed] = useState(false);
     const [myArtistGuessed, setMyArtistGuessed] = useState(false);
-    const [volume, setVolume] = useState(0.5);
     const prevRoundRef = useRef(null);
     const inputRef = useRef(null);
     const audioRef = useRef(null);
 
     const fetchSession = useCallback(() => getSession(session.sessionId), [session.sessionId]);
 
+    // SignalR subscription with symmetric Join/Leave
     const { connected } = useSessionSubscription(session.sessionId, {
         SessionUpdated: () => refetch(),
         PlayerAnsweredCorrectly: () => refetch(),
@@ -58,6 +58,7 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
         },
     });
 
+    // Polling as fallback — disabled when SignalR is connected
     const { data: gameState, error, refetch } = usePolling(fetchSession, {
         interval: 10000,
         enabled: !connected,
@@ -75,6 +76,7 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
         prevRoundRef.current = roundId;
     }, [gameState?.currentRound?.roundId]);
 
+    // sync guessed state from server (e.g. after page refresh)
     useEffect(() => {
         if (!gameState?.currentRound) return;
         const round = gameState.currentRound;
@@ -92,21 +94,13 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
         if (gameState.currentRound.state === "Playing") {
             audio.src = gameState.currentRound.previewUrl;
             audio.currentTime = 0;
-            audio.volume = volume;
             audio.play().catch(() => { });
         } else {
             audio.pause();
         }
     }, [gameState?.currentRound?.previewUrl, gameState?.currentRound?.state]);
 
-    // Sync volume changes to playing audio
-    useEffect(() => {
-        if (audioRef.current) {
-            audioRef.current.volume = volume;
-        }
-    }, [volume]);
-
-    // Auto-refetch when round timer expires
+    // Auto-refetch when round timer expires (triggers server-side auto-reveal)
     useEffect(() => {
         if (!gameState?.currentRound?.endsAt) return;
         if (gameState.currentRound.state !== "Playing") return;
@@ -282,19 +276,6 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
                 {isRoundPlaying && currentRound?.endsAt && (
                     <Timer endsAt={currentRound.endsAt} total={roundDurationSeconds} />
                 )}
-
-                <div className="volume-control">
-                    <span className="volume-icon">{volume === 0 ? "🔇" : volume < 0.4 ? "🔉" : "🔊"}</span>
-                    <input
-                        type="range"
-                        className="volume-slider"
-                        min="0"
-                        max="1"
-                        step="0.05"
-                        value={volume}
-                        onChange={e => setVolume(parseFloat(e.target.value))}
-                    />
-                </div>
 
                 <div className="game-mask-area">
                     <MaskedWord
