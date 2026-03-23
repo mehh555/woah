@@ -6,11 +6,13 @@ namespace Woah.Api.Services.Session;
 public class SessionFactory : ISessionFactory
 {
     private readonly IAnswerNormalizer _normalizer;
+    private readonly ITrackTitleCleaner _cleaner;
     private readonly TimeProvider _timeProvider;
 
-    public SessionFactory(IAnswerNormalizer normalizer, TimeProvider timeProvider)
+    public SessionFactory(IAnswerNormalizer normalizer, ITrackTitleCleaner cleaner, TimeProvider timeProvider)
     {
         _normalizer = normalizer;
+        _cleaner = cleaner;
         _timeProvider = timeProvider;
     }
 
@@ -37,6 +39,9 @@ public class SessionFactory : ISessionFactory
         for (var i = 0; i < tracks.Count; i++)
         {
             var isFirst = i == 0;
+            var cleanedTitle = _cleaner.CleanTitle(tracks[i].Title);
+            var mainArtist = _cleaner.ExtractMainArtist(tracks[i].Artist);
+
             session.Rounds.Add(new RoundEntity
             {
                 RoundId = Guid.NewGuid(),
@@ -47,8 +52,8 @@ public class SessionFactory : ISessionFactory
                 PreviewUrl = tracks[i].PreviewUrl,
                 AnswerTitle = tracks[i].Title,
                 AnswerArtist = tracks[i].Artist,
-                AnswerNorm = _normalizer.Normalize(tracks[i].Title),
-                AnswerArtistNorm = _normalizer.Normalize(tracks[i].Artist),
+                AnswerNorm = _normalizer.Normalize(cleanedTitle),
+                AnswerArtistNorm = _normalizer.Normalize(mainArtist),
                 ArtworkUrl = tracks[i].ArtworkUrl,
                 ItunesTrackId = tracks[i].ItunesTrackId,
                 StartedAt = now,

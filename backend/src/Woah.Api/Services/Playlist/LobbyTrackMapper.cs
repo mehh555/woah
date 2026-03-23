@@ -6,11 +6,12 @@ namespace Woah.Api.Services.Playlist;
 
 internal static class LobbyTrackMapper
 {
-    public static PlaylistTrackEntity ToEntity(ItunesTrackDto track, Guid playlistId, DateTime addedAt) =>
+    public static PlaylistTrackEntity ToEntity(ItunesTrackDto track, Guid playlistId, Guid addedByPlayerId, DateTime addedAt) =>
         new()
         {
             PlaylistTrackId = Guid.NewGuid(),
             PlaylistId = playlistId,
+            AddedByPlayerId = addedByPlayerId,
             ItunesTrackId = track.TrackId,
             Title = track.TrackName!,
             Artist = track.ArtistName!,
@@ -41,6 +42,7 @@ internal static class LobbyTrackMapper
             PreviewUrl = track.PreviewUrl,
             ArtworkUrl = track.ArtworkUrl,
             DurationMs = track.DurationMs,
-            AddedAt = track.AddedAt
+            AddedAt = track.AddedAt,
+            AddedByPlayerId = track.AddedByPlayerId
         };
 }

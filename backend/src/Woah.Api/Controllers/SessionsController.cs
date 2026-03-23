@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Woah.Api.Contracts.Sessions;
 using Woah.Api.Middleware;
 using Woah.Api.Services.Session;
+
 namespace Woah.Api.Controllers;
 
 [ApiController]

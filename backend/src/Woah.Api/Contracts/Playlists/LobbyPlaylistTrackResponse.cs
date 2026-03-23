@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Woah.Api.Contracts.Playlists;
+﻿namespace Woah.Api.Contracts.Playlists;
 
 public class LobbyPlaylistTrackResponse
 {
@@ -11,4 +9,5 @@ public class LobbyPlaylistTrackResponse
     public string? ArtworkUrl { get; set; }
     public int? DurationMs { get; set; }
     public DateTime AddedAt { get; set; }
+    public Guid AddedByPlayerId { get; set; }
 }

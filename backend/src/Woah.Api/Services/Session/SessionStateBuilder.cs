@@ -9,10 +9,12 @@ namespace Woah.Api.Services.Session;
 public class SessionStateBuilder : ISessionStateBuilder
 {
     private readonly WoahDbContext _dbContext;
+    private readonly ITrackTitleCleaner _cleaner;
 
-    public SessionStateBuilder(WoahDbContext dbContext)
+    public SessionStateBuilder(WoahDbContext dbContext, ITrackTitleCleaner cleaner)
     {
         _dbContext = dbContext;
+        _cleaner = cleaner;
     }
 
     public async Task<GetSessionStateResponse> BuildAsync(GameSessionEntity session, CancellationToken ct)
@@ -40,10 +42,14 @@ public class SessionStateBuilder : ISessionStateBuilder
         };
     }
 
-    private static SessionRoundResponse MapRound(RoundEntity round)
+    private SessionRoundResponse MapRound(RoundEntity round)
     {
         var answers = round.CorrectAnswers.ToList();
         var isRevealed = round.State is RoundState.Revealed or RoundState.Finished;
+
+        // Mask uses cleaned title/artist (no feat, no brackets)
+        var cleanedTitle = _cleaner.CleanTitle(round.AnswerTitle);
+        var mainArtist = _cleaner.ExtractMainArtist(round.AnswerArtist);
 
         return new SessionRoundResponse
         {
@@ -60,8 +66,8 @@ public class SessionStateBuilder : ISessionStateBuilder
             ItunesUrl = isRevealed && round.ItunesTrackId.HasValue
                 ? $"https://music.apple.com/pl/song/{round.ItunesTrackId.Value}"
                 : null,
-            AnswerTitleMask = BuildMask(round.AnswerTitle),
-            AnswerArtistMask = BuildMask(round.AnswerArtist),
+            AnswerTitleMask = BuildMask(cleanedTitle),
+            AnswerArtistMask = BuildMask(mainArtist),
             CorrectAnswerCount = answers.Count,
             CorrectPlayerIds = answers.Select(x => x.PlayerId).ToList(),
             CorrectTitlePlayerIds = answers.Where(x => x.GotTitle).Select(x => x.PlayerId).ToList(),

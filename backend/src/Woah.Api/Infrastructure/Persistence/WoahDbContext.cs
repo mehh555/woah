@@ -121,6 +121,11 @@ public class WoahDbContext : DbContext
                 .WithMany(pl => pl.Tracks)
                 .HasForeignKey(pt => pt.PlaylistId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(pt => pt.AddedByPlayer)
+                .WithMany()
+                .HasForeignKey(pt => pt.AddedByPlayerId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<GameSessionEntity>(e =>

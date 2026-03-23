@@ -61,16 +61,16 @@ public class LobbyPlaylistService : ILobbyPlaylistService
 
     public async Task<GetLobbyPlaylistResponse> AddTrackAsync(string lobbyCode, AddLobbyTrackRequest request, CancellationToken ct = default)
     {
-        var (lobby, playlist) = await GetLobbyAndPlaylistForHostAsync(lobbyCode, request.HostPlayerId, ct);
+        var (lobby, playlist) = await GetLobbyForActivePlayerAsync(lobbyCode, request.PlayerId, ct);
 
-        var currentCount = await _dbContext.PlaylistTracks
-            .CountAsync(x => x.PlaylistId == playlist.PlaylistId, ct);
+        var playerTrackCount = await _dbContext.PlaylistTracks
+            .CountAsync(x => x.PlaylistId == playlist.PlaylistId && x.AddedByPlayerId == request.PlayerId, ct);
 
-        if (currentCount >= ILobbyPlaylistService.MaxTracks)
+        if (playerTrackCount >= ILobbyPlaylistService.MaxTracksPerPlayer)
         {
-            _logger.LogWarning("Add track rejected — playlist limit reached for lobby {LobbyCode} ({Max} tracks)",
-                lobby.Code, ILobbyPlaylistService.MaxTracks);
-            throw new BadRequestException($"Playlist cannot exceed {ILobbyPlaylistService.MaxTracks} tracks.");
+            _logger.LogWarning("Add track rejected — player {PlayerId} reached limit in lobby {LobbyCode} ({Max} tracks)",
+                request.PlayerId, lobby.Code, ILobbyPlaylistService.MaxTracksPerPlayer);
+            throw new BadRequestException($"You can add at most {ILobbyPlaylistService.MaxTracksPerPlayer} tracks.");
         }
 
         var itunesTrack = await _itunesClient.LookupSongAsync(request.TrackId, ct);
@@ -83,7 +83,7 @@ public class LobbyPlaylistService : ILobbyPlaylistService
         }
 
         var now = _timeProvider.GetUtcNow().UtcDateTime;
-        var entity = LobbyTrackMapper.ToEntity(itunesTrack, playlist.PlaylistId, now);
+        var entity = LobbyTrackMapper.ToEntity(itunesTrack, playlist.PlaylistId, request.PlayerId, now);
         _dbContext.PlaylistTracks.Add(entity);
 
         try
@@ -97,7 +97,8 @@ public class LobbyPlaylistService : ILobbyPlaylistService
             throw new BadRequestException("Track already exists in the lobby playlist.");
         }
 
-        _logger.LogInformation("Track {TrackId} added to lobby {LobbyCode} playlist", request.TrackId, lobby.Code);
+        _logger.LogInformation("Track {TrackId} added by player {PlayerId} to lobby {LobbyCode} playlist",
+            request.TrackId, request.PlayerId, lobby.Code);
         await _notifier.LobbyUpdated(lobby.Code);
 
         return await GetLobbyPlaylistAsync(lobby.Code, ct);
@@ -105,7 +106,7 @@ public class LobbyPlaylistService : ILobbyPlaylistService
 
     public async Task<GetLobbyPlaylistResponse> RemoveTrackAsync(string lobbyCode, long trackId, RemoveLobbyTrackRequest request, CancellationToken ct = default)
     {
-        var (lobby, playlist) = await GetLobbyAndPlaylistForHostAsync(lobbyCode, request.HostPlayerId, ct);
+        var (lobby, playlist) = await GetLobbyForActivePlayerAsync(lobbyCode, request.PlayerId, ct);
 
         var track = await _dbContext.PlaylistTracks
             .FirstOrDefaultAsync(x => x.PlaylistId == playlist.PlaylistId && x.ItunesTrackId == trackId, ct);
@@ -117,17 +118,25 @@ public class LobbyPlaylistService : ILobbyPlaylistService
             throw new BadRequestException("Track not found in the lobby playlist.");
         }
 
+        if (track.AddedByPlayerId != request.PlayerId)
+        {
+            _logger.LogWarning("Remove track rejected — player {PlayerId} did not add trackId={TrackId} in lobby {LobbyCode}",
+                request.PlayerId, trackId, lobby.Code);
+            throw new ForbiddenException("You can only remove tracks you added.");
+        }
+
         _dbContext.PlaylistTracks.Remove(track);
         await _dbContext.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Track {TrackId} removed from lobby {LobbyCode} playlist", trackId, lobby.Code);
+        _logger.LogInformation("Track {TrackId} removed by player {PlayerId} from lobby {LobbyCode} playlist",
+            trackId, request.PlayerId, lobby.Code);
         await _notifier.LobbyUpdated(lobby.Code);
 
         return await GetLobbyPlaylistAsync(lobby.Code, ct);
     }
 
-    private async Task<(LobbyEntity Lobby, PlaylistEntity Playlist)> GetLobbyAndPlaylistForHostAsync(
-        string lobbyCode, Guid hostPlayerId, CancellationToken ct)
+    private async Task<(LobbyEntity Lobby, PlaylistEntity Playlist)> GetLobbyForActivePlayerAsync(
+        string lobbyCode, Guid playerId, CancellationToken ct)
     {
         var lobby = await _dbContext.Lobbies
             .Include(x => x.LobbyPlayers)
@@ -141,18 +150,11 @@ public class LobbyPlaylistService : ILobbyPlaylistService
             throw new BadRequestException("Tracks can be modified only while lobby is waiting.");
         }
 
-        if (lobby.HostPlayerId != hostPlayerId)
+        if (!lobby.LobbyPlayers.Any(x => x.PlayerId == playerId && x.LeftAt == null))
         {
-            _logger.LogWarning("Playlist action rejected — player {PlayerId} is not host of lobby {LobbyCode}",
-                hostPlayerId, lobby.Code);
-            throw new ForbiddenException("Only the host can modify the lobby playlist.");
-        }
-
-        if (!lobby.LobbyPlayers.Any(x => x.PlayerId == hostPlayerId && x.LeftAt == null))
-        {
-            _logger.LogWarning("Playlist action rejected — host {PlayerId} is not active in lobby {LobbyCode}",
-                hostPlayerId, lobby.Code);
-            throw new BadRequestException("Host is not active in this lobby.");
+            _logger.LogWarning("Playlist action rejected — player {PlayerId} is not active in lobby {LobbyCode}",
+                playerId, lobby.Code);
+            throw new BadRequestException("Player is not active in this lobby.");
         }
 
         var playlist = await _dbContext.Playlists
