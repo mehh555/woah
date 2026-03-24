@@ -138,7 +138,7 @@ export default function LobbyScreen({ onStart, onExit }) {
             </div>
 
             {amIHost && (
-                <PlaylistPanel lobbyCode={session.lobbyCode} playerId={session.playerId} />
+                <PlaylistPanel lobbyCode={session.lobbyCode} hostPlayerId={session.playerId} />
             )}
 
             <div className="lobby-actions">
