@@ -22,7 +22,7 @@
 
 ---
 
-Players join a lobby, each submits tracks from iTunes, and the game plays 30-second previews. Type the song title or artist before time runs out — faster answers earn more points. Tracks are sourced from the players themselves, which opens up a whole layer of strategy: you can't guess your own song, but you earn bonus points when someone else nails yours.
+Players join a lobby, each submits tracks from iTunes, and the game plays 30-second previews. Type the song title or artist before time runs out - faster answers earn more points. Tracks are sourced from the players themselves, which opens up a whole layer of strategy: you can't guess your own song, but you earn bonus points when someone else nails yours.
 
 The interesting engineering isn't the game loop — it's what happens when 10 players submit answers to the same round within the same 200ms window.
 
