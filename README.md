@@ -99,31 +99,8 @@ session:{id} — zmiany rund, aktualizacja wyników, powiadomienia o poprawnych 
 
 Frontend używa hooka useSignalRGroup z wrapperami useLobbySubscription i useSessionSubscription.
 
-🏗️ Architektura systemu
-┌─────────────┐         WebSocket (SignalR)          ┌──────────────────┐
-│             │ ◄──────────────────────────────────── │                  │
-│   React 18  │                                      │   .NET 8 API     │
-│   (Vite)    │ ────── REST (JSON) ────────────────► │                  │
-│             │                                      │  Controllers     │
-└──────┬──────┘                                      │    ↓             │
-       │                                             │  Services (DI)   │
-  Vercel CDN                                         │    ↓             │
-                                                     │  EF Core         │
-                                                     │    ↓             │
-                                                     └───────┬──────────┘
-                                                             │  Render
-                                                     ┌───────▼──────────┐
-                                                     │  PostgreSQL 16   │
-                                                     │                  │
-                                                     │  xmin versioning │
-                                                     │  FOR UPDATE      │
-                                                     │  SERIALIZABLE    │
-                                                     └──────────────────┘
-☁️ Chmura i wdrożenie
-Komponent	Platforma	Szczegóły
-Frontend	Vercel	SPA z Vite, CDN, SSL
-Backend	Render	Docker .NET 8, multi-stage Alpine (~80MB), health checks
-Baza	Render	PostgreSQL 16, connection string z env
+☁️ Chmura i wdrożenie (Render)
+Cała aplikacja jest skonteneryzowana za pomocą Docker multi-stage build i hostowana w ekosystemie Render.
 
 Keep-Alive: cron co 14 min pingujący /health/live → SignalR nie traci połączeń.
 
