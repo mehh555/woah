@@ -1,64 +1,62 @@
 <p align="center">
   <h1 align="center">🎵 WOAH</h1>
   <p align="center">
-    <strong>Real-time multiplayer music guessing - built for concurrency, not just correctness.</strong>
+    <strong>Real-time multiplayer music guessing — built for concurrency, not just correctness.</strong>
   </p>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" />
-  <img src="https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black" />
-  <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" />
-  <img src="https://img.shields.io/badge/SignalR-WebSockets-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" />
-  <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white" />
-  <img src="https://img.shields.io/badge/Vite-6-646CFF?style=for-the-badge&logo=vite&logoColor=white" />
+  <img src="https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET 8" />
+  <img src="https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 18" />
+  <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL 16" />
+  <img src="https://img.shields.io/badge/SignalR-WebSockets-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt="SignalR" />
+  <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
+  <img src="https://img.shields.io/badge/Vite-6-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" />
 </p>
 
 <p align="center">
   <a href="https://woah-mvz6.onrender.com/">
-    <img src="https://img.shields.io/badge/🚀_Play_Live_Demo-00E5A0?style=for-the-badge&logoColor=white" />
+    <img src="https://img.shields.io/badge/🚀_Play_Live_Demo-00E5A0?style=for-the-badge&logoColor=white" alt="Live Demo" />
   </a>
 </p>
 
 ---
 
-Gracze dołączają do lobby, każdy dodaje utwory z iTunes, a gra odtwarza 30-sekundowe fragmenty. Wpisz tytuł lub artystę zanim skończy się czas — szybciej = więcej punktów. Nie możesz zgadnąć własnej piosenki, ale zdobywasz bonus, gdy ktoś inny zgadnie Twój utwór.
+Players join a lobby, curate a shared playlist using the iTunes API, and compete in real-time to guess the currently playing track. Type the title or artist before the 30-second timer runs out — faster answers yield more points. You cannot guess your own submitted tracks, but you are rewarded with a bonus when others guess them correctly.
 
 ![Gameplay Preview](docs/gameplay.gif)
 ![Lobby Preview](docs/lobby.gif)
 
 ---
 
-## 🎮 Funkcje rozgrywki
+## 🎮 Gameplay Features
 
-- **System Lobby** — Twórz lub dołączaj przy użyciu 6-znakowego kodu. Host kontroluje playlistę i czas trwania rundy (5–25s).  
-- **Utwory dodawane przez graczy** — Każdy wyszukuje utwory w iTunes i dodaje je do wspólnej playlisty. Gra losowo odtwarza utwory.  
-- **Live Scoring** — Punkty maleją liniowo od 100 do 1 w miarę upływu czasu. Zgadywanie tylko artysty daje połowę punktów.  
-- **Mechanika właściciela utworu** — Nie możesz zgadywać własnego utworu. Gdy inny gracz zgadnie Twój utwór, otrzymujesz bonus 75 punktów, przyznawany tylko raz na rundę.  
-- **Punkty częściowe** — Tytuł i artysta oceniane niezależnie, możesz zdobyć jeden teraz, a drugi później w tej samej rundzie.  
-- **Regulacja głośności** — Suwak w grze z zapamiętaną preferencją (`localStorage`). Możliwa zmiana w trakcie rundy.  
-- **GPU-accelerated Timer** — Pasek postępu działa na pojedynczej animacji CSS, bez obciążania JS.  
-- **Aktualizacje w czasie rzeczywistym** — Dołączenia do lobby, zmiany rund, wyników i stanu gry przesyłane natychmiast przez WebSocket (SignalR).  
-- **Utrzymanie sesji** — Odświeżenie strony przywraca dokładny stan gry (lobby, sesja, postęp).  
-- **Sprzątanie nieaktywnych gier** — Usługa w tle automatycznie zamyka opuszczone lobby (30 min) i sesje (15 min).
+* **Lobby System:** Create or join using a secure 6-character code. The host controls the playlist and round duration (5–25s).
+* **Player-Curated Playlists:** Search and add songs via the iTunes API. The game randomizes playback order.
+* **Live Scoring:** Points decay linearly from 100 to 1 as the timer drops. Guessing only the artist awards half points.
+* **Track Owner Mechanics:** Anti-cheat prevents guessing your own track. You receive a one-time 75-point bonus when another player successfully guesses your submission.
+* **Partial Points:** Title and artist are evaluated independently. You can secure points for one and guess the other later in the same round.
+* **GPU-Accelerated Timer:** The progress bar utilizes a single CSS animation, eliminating JavaScript overhead and re-renders.
+* **Real-Time Sync:** Lobby joins, round transitions, and scoring are pushed instantly via SignalR WebSockets.
+* **Session Resilience:** Refreshing the page (F5) flawlessly restores the exact game state, lobby data, and round progress.
 
 ---
 
-## ⚙️ Inżynieria i architektura
+## ⚙️ Engineering & Architecture
 
-### Kontrola współbieżności — 3 poziomy
+### Concurrency Control (3-Tier System)
 
-| Poziom | Mechanizm | Gdzie | Dlaczego |
-|--------|-----------|-------|----------|
-| **Pesymistyczny** | `SELECT ... FOR UPDATE` | Dołączanie do lobby | Zapobiega jednoczesnemu zajęciu ostatniego miejsca |
-| **Serializable** | `IsolationLevel.Serializable` | Tworzenie sesji | Gwarantuje dokładnie jedną aktywną sesję na lobby |
-| **Optymistyczny** | PostgreSQL `xmin` row versioning + retry | Przesyłanie odpowiedzi | Obsługuje współbieżne zapisy bez blokowania całej rundy |
+| Level | Mechanism | Scope | Purpose |
+| :--- | :--- | :--- | :--- |
+| **Pessimistic** | `SELECT ... FOR UPDATE` | Lobby Joins | Prevents race conditions when multiple players claim the last available slot. |
+| **Serializable** | `IsolationLevel.Serializable` | Session Initialization | Guarantees exactly one active session is created per lobby. |
+| **Optimistic** | PostgreSQL `xmin` + Retry Loop | Answer Submissions | Handles highly concurrent write bursts without locking the entire round table. |
 
 ```csharp
 for (var attempt = 0; ; attempt++)
 {
     var existing = round.CorrectAnswers.FirstOrDefault(x => x.PlayerId == request.PlayerId);
-    // ... calculate points ...
+    // ... point calculation logic ...
     try
     {
         await _dbContext.SaveChangesAsync(ct);
@@ -71,89 +69,3 @@ for (var attempt = 0; ; attempt++)
         continue;
     }
 }
-Silnik normalizacji tekstu
-
-Normalizacja odpowiada za dopasowanie wpisów typu "naïve", "NAIVE", "n@1ve", "ñaive" do tytułu lub artysty, usuwa diakrytyki i normalizuje format.
-
-Pipeline:
-
-Mapowanie znaków — Leet-speak ($→s, @→a, 3→e, 0→o) i specjalne (ł→l, ß→ss, ø→o)
-Małe litery — ToLowerInvariant()
-Decompozycja NFD — rozdzielenie bazowego znaku + kombinujących
-Usuwanie diakrytyków — UnicodeCategory.NonSpacingMark
-Rekompozycja NFC — złożenie znaków, redukcja spacji
-Bezpieczeństwo i produkcja
-Problem	Rozwiązanie
-Brute-force kodów lobby	Limit żądań JoinLobby 10 req/60s/IP
-Spam odpowiedzi	SubmitAnswer capped 5 req/10s/IP
-Ekspozycja Swagger	Tylko w IsDevelopment()
-Auto-migracje w prod	Tylko manualnie w prod
-Wycieki danych	dotnet user-secrets lokalnie, zmienne środowiskowe w prod
-Race condition bonusów	Obsługa w try/catch (DbUpdateException)
-Komunikacja w czasie rzeczywistym
-
-SignalR WebSocket + fallback long-polling. Kanały grupowe:
-
-lobby:{code} — dołączenia, zmiany playlisty, start sesji
-session:{id} — zmiany rund, aktualizacja wyników, powiadomienia o poprawnych odpowiedziach
-
-Frontend używa hooka useSignalRGroup z wrapperami useLobbySubscription i useSessionSubscription.
-
-☁️ Chmura i wdrożenie (Render)
-Cała aplikacja jest skonteneryzowana za pomocą Docker multi-stage build i hostowana w ekosystemie Render.
-
-Keep-Alive: cron co 14 min pingujący /health/live → SignalR nie traci połączeń.
-
-🚀 Uruchamianie lokalne
-
-Docker Compose (zalecane):
-
-git clone https://github.com/mehh/woah.git && cd woah
-docker compose up --build
-# http://localhost:5173
-
-Bez Dockera:
-
-cd backend/src/Woah.Api
-dotnet user-secrets set "ConnectionStrings:WoahDb" "Host=localhost;Port=5432;Database=woah;Username=woah_user;Password=woah_pass"
-dotnet run
-# http://localhost:5234
-
-cd frontend
-npm install && npm run dev
-# http://localhost:5173
-🔐 Zmienne środowiskowe
-
-Backend:
-
-ConnectionStrings__WoahDb — wymagane
-AllowedCorsOrigins__0 — domyślnie http://localhost:5173
-ASPNETCORE_ENVIRONMENT — domyślnie Production
-Itunes__Market — domyślnie US
-
-Frontend:
-
-VITE_API_URL — domyślnie /api
-📁 Struktura projektu
-woah/
-├── backend/
-│   └── src/Woah.Api/
-│       ├── Contracts/
-│       ├── Controllers/
-│       ├── Domain/
-│       ├── Hubs/
-│       ├── Infrastructure/Persistence/
-│       ├── Integrations/Itunes/
-│       ├── Middleware/
-│       └── Services/
-├── frontend/src/
-│   ├── api/
-│   ├── components/
-│   ├── context/
-│   ├── hooks/
-│   └── screens/
-├── docker-compose.yml
-└── Dockerfile
-📄 Licencja
-
-Projekt edukacyjny / portfolio. Fragmenty muzyczne pochodzą z iTunes Search API zgodnie z regulaminem Apple.
