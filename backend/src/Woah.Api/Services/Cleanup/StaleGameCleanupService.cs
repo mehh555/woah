@@ -48,7 +48,7 @@ public class StaleGameCleanupService : BackgroundService
         }
     }
 
-    private async Task CleanupAsync(CancellationToken ct)
+    protected async Task CleanupAsync(CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WoahDbContext>();
