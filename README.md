@@ -1,7 +1,7 @@
 <p align="center">
   <h1 align="center">🎵 WOAH</h1>
   <p align="center">
-    <strong>Real-time multiplayer music guessing — built for concurrency, not just correctness.</strong>
+    <strong>Real-time multiplayer music guessing - built for concurrency, not just correctness.</strong>
   </p>
 </p>
 
