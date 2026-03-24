@@ -61,7 +61,7 @@ public class SessionService : ISessionService
         if (tracks.Count == 0)
             throw new BadRequestException("Playlist must contain at least one track before starting.");
 
-        var settings = new SessionSettings(Math.Clamp(request.RoundDurationSeconds, 5, 15));
+        var settings = new SessionSettings(Math.Clamp(request.RoundDurationSeconds, 5, 25));
 
         await using var tx = await _dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
         try

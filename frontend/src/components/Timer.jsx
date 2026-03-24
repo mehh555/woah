@@ -2,17 +2,18 @@ import { useState, useEffect, useRef, memo } from "react";
 
 export default memo(function Timer({ endsAt, total }) {
     const [displaySeconds, setDisplaySeconds] = useState(0);
+    const [danger, setDanger] = useState(false);
     const barRef = useRef(null);
 
     useEffect(() => {
         if (!endsAt || !total || total <= 0) return;
 
         const endMs = new Date(endsAt).getTime();
-        const startMs = endMs - total * 1000;
         const nowMs = Date.now();
-
         const initialRemaining = Math.max(0, (endMs - nowMs) / 1000);
+
         setDisplaySeconds(initialRemaining);
+        setDanger(initialRemaining / total < 0.25);
 
         const bar = barRef.current;
         if (bar) {
@@ -32,19 +33,18 @@ export default memo(function Timer({ endsAt, total }) {
         const id = setInterval(() => {
             const remaining = Math.max(0, (endMs - Date.now()) / 1000);
             setDisplaySeconds(remaining);
+            setDanger(remaining / total < 0.25);
             if (remaining <= 0) clearInterval(id);
         }, 1000);
 
         return () => clearInterval(id);
     }, [endsAt, total]);
 
-    const pct = total > 0 ? Math.max(0, Math.min(100, (displaySeconds / total) * 100)) : 0;
-
     return (
         <div className="timer-wrap">
             <div
                 ref={barRef}
-                className={`timer-bar ${pct < 25 ? "danger" : ""}`}
+                className={`timer-bar${danger ? " danger" : ""}`}
             />
             <div className="timer-text">{Math.ceil(displaySeconds)}s</div>
         </div>
