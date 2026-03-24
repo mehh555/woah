@@ -2,7 +2,6 @@
 using Npgsql;
 using Woah.Api.Contracts.Playlists;
 using Woah.Api.Domain;
-using Woah.Api.Domain;
 using Woah.Api.Exceptions;
 using Woah.Api.Infrastructure.Persistence;
 using Woah.Api.Infrastructure.Persistence.Models;
