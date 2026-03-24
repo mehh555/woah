@@ -29,6 +29,7 @@ Woah is a real-time web application where players create lobbies, collaborativel
 
 ---
 **Project Origins:** *Woah* was created simply as a fun multiplayer game to host locally and play with friends — and that remains its primary purpose. We still host it on our own machines for game nights. The live version currently deployed on Render is strictly a public demo so others can see how it works without setting it up themselves.
+
 ---
 
 ## 🚀 Quick Start (Local Development)
