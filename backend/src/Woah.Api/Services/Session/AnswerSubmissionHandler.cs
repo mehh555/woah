@@ -18,6 +18,11 @@ public class AnswerSubmissionHandler : IAnswerSubmissionHandler
 	private readonly TimeProvider _timeProvider;
 	private readonly ILogger<AnswerSubmissionHandler> _logger;
 
+<<<<<<< Updated upstream
+=======
+	private const int MaxConcurrencyRetries = 2;
+	private const int TrackOwnerBonusPoints = 75;
+>>>>>>> Stashed changes
 
 	public AnswerSubmissionHandler(
 		WoahDbContext dbContext,
@@ -158,11 +163,16 @@ public class AnswerSubmissionHandler : IAnswerSubmissionHandler
 			}
 		}
 
+<<<<<<< Updated upstream
+=======
+		// Award track owner bonus (once) when the first other player guesses the title correctly
+>>>>>>> Stashed changes
 		if (newTitle && trackOwnerId.HasValue)
 		{
 			var ownerAlreadyRewarded = round.CorrectAnswers.Any(a => a.PlayerId == trackOwnerId.Value);
 			if (!ownerAlreadyRewarded)
 			{
+<<<<<<< Updated upstream
 				try
 				{
 					_dbContext.RoundCorrectAnswers.Add(new RoundCorrectAnswerEntity
@@ -186,6 +196,22 @@ public class AnswerSubmissionHandler : IAnswerSubmissionHandler
 						"Track owner bonus already awarded (concurrent insert) for round {RoundNo} session {SessionId}",
 						round.RoundNo, sessionId);
 				}
+=======
+				_dbContext.RoundCorrectAnswers.Add(new RoundCorrectAnswerEntity
+				{
+					RoundId = round.RoundId,
+					PlayerId = trackOwnerId.Value,
+					AnsweredAt = now,
+					Points = TrackOwnerBonusPoints,
+					GotTitle = false,
+					GotArtist = false
+				});
+				await _dbContext.SaveChangesAsync(ct);
+
+				_logger.LogInformation(
+					"Track owner bonus {Bonus} pts awarded to {OwnerId} in session {SessionId} round {RoundNo}",
+					TrackOwnerBonusPoints, trackOwnerId.Value, sessionId, round.RoundNo);
+>>>>>>> Stashed changes
 			}
 		}
 

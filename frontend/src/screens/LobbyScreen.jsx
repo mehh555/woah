@@ -137,7 +137,11 @@ export default function LobbyScreen({ onStart, onExit }) {
                 ))}
             </div>
 
+<<<<<<< Updated upstream
             {(
+=======
+            {amIHost && (
+>>>>>>> Stashed changes
                 <PlaylistPanel lobbyCode={session.lobbyCode} playerId={session.playerId} />
             )}
 
