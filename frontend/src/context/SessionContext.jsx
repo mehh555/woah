@@ -24,7 +24,6 @@ export function SessionProvider({ children }) {
                 window.localStorage.removeItem(STORAGE_KEY);
             }
         } catch {
-            // ignore storage errors in dev
         }
     }, [session]);
 

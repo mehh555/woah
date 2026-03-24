@@ -1,10 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 
-/**
- * Polls fetchFn at `interval` ms, but ONLY when `enabled` is true.
- * Always performs one initial fetch on mount regardless of `enabled`.
- * When transitioning from disabled→enabled, does an immediate refetch.
- */
 export function usePolling(fetchFn, { interval = 10000, enabled = true } = {}) {
     const [data, setData] = useState(null);
     const [error, setError] = useState(null);
@@ -22,7 +17,6 @@ export function usePolling(fetchFn, { interval = 10000, enabled = true } = {}) {
         }
     }, []);
 
-    // Initial fetch (always, regardless of enabled)
     useEffect(() => {
         let cancelled = false;
 
@@ -40,11 +34,9 @@ export function usePolling(fetchFn, { interval = 10000, enabled = true } = {}) {
         return () => { cancelled = true; };
     }, [fetchFn]);
 
-    // Interval polling — only when enabled
     useEffect(() => {
         if (!enabled || !interval) return;
 
-        // Catch up after reconnect: immediate fetch when enabled flips to true
         if (didInitialFetch.current) {
             refetch();
         }

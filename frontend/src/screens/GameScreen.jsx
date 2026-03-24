@@ -43,7 +43,6 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
 
     const fetchSession = useCallback(() => getSession(session.sessionId), [session.sessionId]);
 
-    // SignalR subscription with symmetric Join/Leave
     const { connected } = useSessionSubscription(session.sessionId, {
         SessionUpdated: () => refetch(),
         PlayerAnsweredCorrectly: () => refetch(),
@@ -58,7 +57,6 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
         },
     });
 
-    // Polling as fallback — disabled when SignalR is connected
     const { data: gameState, error, refetch } = usePolling(fetchSession, {
         interval: 10000,
         enabled: !connected,
@@ -76,7 +74,6 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
         prevRoundRef.current = roundId;
     }, [gameState?.currentRound?.roundId]);
 
-    // sync guessed state from server (e.g. after page refresh)
     useEffect(() => {
         if (!gameState?.currentRound) return;
         const round = gameState.currentRound;
@@ -100,7 +97,6 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
         }
     }, [gameState?.currentRound?.previewUrl, gameState?.currentRound?.state]);
 
-    // Auto-refetch when round timer expires (triggers server-side auto-reveal)
     useEffect(() => {
         if (!gameState?.currentRound?.endsAt) return;
         if (gameState.currentRound.state !== "Playing") return;
@@ -162,7 +158,8 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
         try {
             await advanceSession(session.sessionId, session.playerId);
         } catch (e) {
-            alert("Błąd: " + e.message);
+            setFeedback({ type: "wrong", msg: e.message });
+            setTimeout(() => setFeedback(null), 3000);
         }
     }
 
@@ -175,7 +172,8 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
         try {
             await returnToLobby(session.sessionId, session.playerId);
         } catch (e) {
-            alert("Błąd: " + e.message);
+            setFeedback({ type: "wrong", msg: e.message });
+            setTimeout(() => setFeedback(null), 3000);
         }
     }
 
@@ -199,7 +197,6 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
     const isMyTrack = currentRound?.addedByPlayerId === session.playerId;
     const canStillGuess = isRoundPlaying && !bothGuessed && !isMyTrack;
 
-    // ─── FINISHED SCREEN ─────────────────────────────────
     if (isFinished) {
         const winner = sorted[0];
         return (
@@ -252,7 +249,6 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
         );
     }
 
-    // ─── ROUND SUMMARY MODAL ─────────────────────────────
     if (isRoundRevealed) {
         return (
             <div className="game-screen">
@@ -267,7 +263,6 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
         );
     }
 
-    // ─── PLAYING UI ──────────────────────────────────────
     return (
         <div className="game-screen">
             <audio ref={audioRef} />

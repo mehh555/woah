@@ -9,10 +9,10 @@ import PlaylistPanel from "../components/PlaylistPanel.jsx";
 export default function LobbyScreen({ onStart, onExit }) {
     const { session, setSession, clearSession } = useSession();
     const [roundDuration, setRoundDuration] = useState(10);
+    const [startError, setStartError] = useState("");
 
     const fetchLobby = useCallback(() => getLobby(session.lobbyCode), [session.lobbyCode]);
 
-    // SignalR subscription with symmetric Join/Leave
     const { connected } = useLobbySubscription(session.lobbyCode, {
         LobbyUpdated: () => refetch(),
         SessionStarted: ({ sessionId }) => {
@@ -21,7 +21,6 @@ export default function LobbyScreen({ onStart, onExit }) {
         },
     });
 
-    // Polling as fallback — disabled when SignalR is connected
     const { data: lobby, error, refetch } = usePolling(fetchLobby, {
         interval: 10000,
         enabled: !connected,
@@ -68,7 +67,8 @@ export default function LobbyScreen({ onStart, onExit }) {
             setSession(prev => ({ ...prev, sessionId: res.sessionId }));
             onStart();
         } catch (e) {
-            alert("Błąd startu: " + e.message);
+            setStartError(e.message);
+            setTimeout(() => setStartError(""), 4000);
         }
     }
 
@@ -157,6 +157,7 @@ export default function LobbyScreen({ onStart, onExit }) {
                             </select>
                         </div>
                         <button className="btn btn-primary" onClick={handleStart}>▶ Start gry</button>
+                        {startError && <div className="error-msg" style={{ fontSize: ".85rem" }}>{startError}</div>}
                     </>
                 ) : (
                     <div className="waiting-anim">Czekam na start od hosta <DotPulse /></div>
