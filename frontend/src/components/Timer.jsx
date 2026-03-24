@@ -1,30 +1,52 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 
-export default function Timer({ endsAt, total }) {
-    const [seconds, setSeconds] = useState(0);
+export default memo(function Timer({ endsAt, total }) {
+    const [displaySeconds, setDisplaySeconds] = useState(0);
+    const barRef = useRef(null);
 
     useEffect(() => {
-        if (!endsAt) return;
+        if (!endsAt || !total || total <= 0) return;
 
-        function tick() {
-            const remaining = Math.max(0, (new Date(endsAt).getTime() - Date.now()) / 1000);
-            setSeconds(remaining);
+        const endMs = new Date(endsAt).getTime();
+        const startMs = endMs - total * 1000;
+        const nowMs = Date.now();
+
+        const initialRemaining = Math.max(0, (endMs - nowMs) / 1000);
+        setDisplaySeconds(initialRemaining);
+
+        const bar = barRef.current;
+        if (bar) {
+            const initialPct = Math.max(0, Math.min(100, (initialRemaining / total) * 100));
+            bar.style.transition = "none";
+            bar.style.width = `${initialPct}%`;
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    const remainingMs = Math.max(0, endMs - Date.now());
+                    bar.style.transition = `width ${remainingMs}ms linear`;
+                    bar.style.width = "0%";
+                });
+            });
         }
 
-        tick();
-        const id = setInterval(tick, 200);
-        return () => clearInterval(id);
-    }, [endsAt]);
+        const id = setInterval(() => {
+            const remaining = Math.max(0, (endMs - Date.now()) / 1000);
+            setDisplaySeconds(remaining);
+            if (remaining <= 0) clearInterval(id);
+        }, 1000);
 
-    const pct = total > 0 ? Math.max(0, Math.min(100, (seconds / total) * 100)) : 0;
+        return () => clearInterval(id);
+    }, [endsAt, total]);
+
+    const pct = total > 0 ? Math.max(0, Math.min(100, (displaySeconds / total) * 100)) : 0;
 
     return (
         <div className="timer-wrap">
             <div
+                ref={barRef}
                 className={`timer-bar ${pct < 25 ? "danger" : ""}`}
-                style={{ width: `${pct}%`, transition: "width 0.2s linear" }}
             />
-            <div className="timer-text">{Math.ceil(seconds)}s</div>
+            <div className="timer-text">{Math.ceil(displaySeconds)}s</div>
         </div>
     );
-}
+});

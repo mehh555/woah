@@ -8,7 +8,7 @@ import PlaylistPanel from "../components/PlaylistPanel.jsx";
 
 export default function LobbyScreen({ onStart, onExit }) {
     const { session, setSession, clearSession } = useSession();
-    const [roundDuration, setRoundDuration] = useState(10);
+    const [roundDuration, setRoundDuration] = useState(15);
     const [startError, setStartError] = useState("");
 
     const fetchLobby = useCallback(() => getLobby(session.lobbyCode), [session.lobbyCode]);
@@ -151,7 +151,7 @@ export default function LobbyScreen({ onStart, onExit }) {
                                 value={roundDuration}
                                 onChange={e => setRoundDuration(Number(e.target.value))}
                             >
-                                {[5, 7, 10, 12, 15].map(s => (
+                                {[5, 7, 10, 12, 15, 20, 25].map(s => (
                                     <option key={s} value={s}>{s}s</option>
                                 ))}
                             </select>

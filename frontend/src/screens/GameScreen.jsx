@@ -37,6 +37,10 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
     const [feedback, setFeedback] = useState(null);
     const [myTitleGuessed, setMyTitleGuessed] = useState(false);
     const [myArtistGuessed, setMyArtistGuessed] = useState(false);
+    const [volume, setVolume] = useState(() => {
+        const saved = localStorage.getItem("woah_volume");
+        return saved !== null ? Number(saved) : 0.5;
+    });
     const prevRoundRef = useRef(null);
     const inputRef = useRef(null);
     const audioRef = useRef(null);
@@ -86,8 +90,14 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
     }, [gameState?.currentRound, session.playerId]);
 
     useEffect(() => {
+        if (audioRef.current) audioRef.current.volume = volume;
+        localStorage.setItem("woah_volume", String(volume));
+    }, [volume]);
+
+    useEffect(() => {
         if (!gameState?.currentRound?.previewUrl || !audioRef.current) return;
         const audio = audioRef.current;
+        audio.volume = volume;
         if (gameState.currentRound.state === "Playing") {
             audio.src = gameState.currentRound.previewUrl;
             audio.currentTime = 0;
@@ -268,6 +278,19 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
             <audio ref={audioRef} />
             <div className="game-top">
                 <div className="round-badge">Runda {currentRound?.roundNo ?? "?"} / {totalRounds}</div>
+
+                <div className="volume-control">
+                    <span className="volume-icon">{volume === 0 ? "🔇" : volume < 0.5 ? "🔉" : "🔊"}</span>
+                    <input
+                        type="range"
+                        className="volume-slider"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={volume}
+                        onChange={e => setVolume(Number(e.target.value))}
+                    />
+                </div>
 
                 {isRoundPlaying && currentRound?.endsAt && (
                     <Timer endsAt={currentRound.endsAt} total={roundDurationSeconds} />
