@@ -66,7 +66,7 @@ export default function PlaylistPanel({ lobbyCode, playerId }) {
         <div className="playlist-panel">
             <div className="playlist-header">
                 <span className="playlist-title">🎵 Twoje piosenki</span>
-                <span className="playlist-count">{myTracks.length} / 10 (łącznie {totalTracks})</span>
+                <span className="playlist-count">{myTracks.length} / 10</span>
             </div>
 
             <div className="search-row">
