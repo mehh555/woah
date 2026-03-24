@@ -11,7 +11,7 @@ public class StartSessionRequest : IValidatableObject
     [Required]
     public Guid PlaylistId { get; set; }
 
-    [Range(5, 15)]
+    [Range(5, 25)]
     public int RoundDurationSeconds { get; set; } = 10;
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
