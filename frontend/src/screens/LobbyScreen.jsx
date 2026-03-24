@@ -39,15 +39,20 @@ export default function LobbyScreen({ onStart, onExit }) {
             return;
         }
 
-        setSession(prev => ({
-            ...prev,
-            isHost: lobby.hostPlayerId === prev.playerId,
-            playlistId: lobby.activePlaylistId ?? prev.playlistId,
-            sessionId: lobby.currentSessionId ?? prev.sessionId ?? null,
-        }));
+        setSession(prev => {
+            const newIsHost = lobby.hostPlayerId === prev.playerId;
+            const newPlaylistId = lobby.activePlaylistId ?? prev.playlistId;
+            const newSessionId = lobby.currentSessionId ?? prev.sessionId ?? null;
+
+            if (prev.isHost === newIsHost && prev.playlistId === newPlaylistId && prev.sessionId === newSessionId) {
+                return prev;
+            }
+
+            return { ...prev, isHost: newIsHost, playlistId: newPlaylistId, sessionId: newSessionId };
+        });
 
         if (lobby.status === "InGame" && lobby.currentSessionId) {
-            setSession(prev => ({ ...prev, sessionId: lobby.currentSessionId }));
+            setSession(prev => prev.sessionId === lobby.currentSessionId ? prev : { ...prev, sessionId: lobby.currentSessionId });
             onStart();
         }
     }, [lobby, session.playerId, setSession, clearSession, onStart, onExit]);
@@ -133,7 +138,7 @@ export default function LobbyScreen({ onStart, onExit }) {
             </div>
 
             {amIHost && (
-                <PlaylistPanel lobbyCode={session.lobbyCode} hostPlayerId={session.playerId} />
+                <PlaylistPanel lobbyCode={session.lobbyCode} playerId={session.playerId} />
             )}
 
             <div className="lobby-actions">
