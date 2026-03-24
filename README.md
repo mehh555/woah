@@ -28,8 +28,7 @@
 Woah is a real-time web application where players create lobbies, collaboratively build a playlist using the iTunes Search API, and compete to guess playing tracks. Built with a focus on **data integrity under concurrent load**, sophisticated **text normalization**, and **resilient WebSocket communication**.
 
 ---
-**Project Origins:** *Woah* started out simply as a casual, fun idea for a multiplayer game we could host locally to play with friends. It eventually grew into a fully-featured app, but the core goal remains the same: guessing songs and having a good time.
-
+**Project Origins:** *Woah* was created simply as a fun multiplayer game to host locally and play with friends — and that remains its primary purpose. We still host it on our own machines for game nights. The live version currently deployed on Render is strictly a public demo so others can see how it works without setting it up themselves.
 ---
 
 ## 🚀 Quick Start (Local Development)
