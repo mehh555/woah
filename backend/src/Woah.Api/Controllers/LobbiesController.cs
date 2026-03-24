@@ -21,6 +21,7 @@ public class LobbiesController : ControllerBase
         => Ok(await _lobbyService.CreateLobbyAsync(request, ct));
 
     [HttpPost("{lobbyCode}/join")]
+    [EnableRateLimiting(RateLimitingConfiguration.JoinLobby)]
     public async Task<ActionResult<JoinLobbyResponse>> JoinLobby(
         [FromRoute] string lobbyCode, [FromBody] JoinLobbyRequest request, CancellationToken ct)
         => Ok(await _lobbyService.JoinLobbyAsync(lobbyCode, request, ct));

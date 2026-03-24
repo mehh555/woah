@@ -6,10 +6,6 @@ namespace Woah.Api.Services.Cleanup;
 
 public class StaleGameCleanupService : BackgroundService
 {
-    private static readonly TimeSpan Interval = TimeSpan.FromMinutes(5);
-    private static readonly TimeSpan StaleLobbyThreshold = TimeSpan.FromMinutes(30);
-    private static readonly TimeSpan StaleSessionThreshold = TimeSpan.FromMinutes(15);
-
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<StaleGameCleanupService> _logger;
@@ -27,14 +23,14 @@ public class StaleGameCleanupService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation(
-            "StaleGameCleanupService started (interval={Interval}, lobbyThreshold={LobbyThreshold}, sessionThreshold={SessionThreshold})",
-            Interval, StaleLobbyThreshold, StaleSessionThreshold);
+            "StaleGameCleanupService started (interval={GameConstants.CleanupInterval}, lobbyThreshold={LobbyThreshold}, sessionThreshold={SessionThreshold})",
+            GameConstants.CleanupInterval, GameConstants.StaleLobbyThreshold, GameConstants.StaleSessionThreshold);
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                await Task.Delay(Interval, stoppingToken);
+                await Task.Delay(GameConstants.CleanupInterval, stoppingToken);
                 await CleanupAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -64,7 +60,7 @@ public class StaleGameCleanupService : BackgroundService
     private async Task<int> CloseStaleLobbiesAsync(WoahDbContext db, CancellationToken ct)
     {
         var now = _timeProvider.GetUtcNow().UtcDateTime;
-        var cutoff = now - StaleLobbyThreshold;
+        var cutoff = now - GameConstants.StaleLobbyThreshold;
 
         var staleLobbies = await db.Lobbies
             .Where(l => l.Status == LobbyStatus.Waiting && l.CreatedAt < cutoff)
@@ -94,7 +90,7 @@ public class StaleGameCleanupService : BackgroundService
     private async Task<int> CloseStaleSessionsAsync(WoahDbContext db, CancellationToken ct)
     {
         var now = _timeProvider.GetUtcNow().UtcDateTime;
-        var cutoff = now - StaleSessionThreshold;
+        var cutoff = now - GameConstants.StaleSessionThreshold;
 
         var activeSessions = await db.GameSessions
             .Where(s => s.EndedAt == null)

@@ -1,6 +1,8 @@
-﻿namespace Woah.Api.Services.Lobby;
+﻿using Woah.Api.Domain;
+
+namespace Woah.Api.Services.Lobby;
 
 public interface ILobbyCodeGenerator
 {
-    string Generate(int length = 6);
+    string Generate(int length = GameConstants.LobbyCodeLength);
 }

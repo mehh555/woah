@@ -72,14 +72,16 @@ builder.Services.AddHealthChecks()
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+if (app.Environment.IsDevelopment())
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<WoahDbContext>();
-    db.Database.Migrate(); 
+    db.Database.Migrate();
+
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
-app.UseSwagger();
-app.UseSwaggerUI();
 app.UseExceptionHandler();
 
 if (!app.Environment.IsDevelopment())

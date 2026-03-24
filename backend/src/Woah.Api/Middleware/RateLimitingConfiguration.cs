@@ -8,6 +8,7 @@ public static class RateLimitingConfiguration
     public const string SubmitAnswer = "submit-answer";
     public const string ItunesSearch = "itunes-search";
     public const string CreateLobby = "create-lobby";
+    public const string JoinLobby = "join-lobby";
 
     public static IServiceCollection AddGameRateLimiting(this IServiceCollection services)
     {
@@ -56,6 +57,16 @@ public static class RateLimitingConfiguration
                     {
                         PermitLimit = 3,
                         Window = TimeSpan.FromSeconds(30),
+                        QueueLimit = 0
+                    }));
+
+            options.AddPolicy(JoinLobby, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 10,
+                        Window = TimeSpan.FromSeconds(60),
                         QueueLimit = 0
                     }));
         });

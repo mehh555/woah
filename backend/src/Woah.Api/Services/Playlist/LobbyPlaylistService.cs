@@ -2,6 +2,7 @@
 using Npgsql;
 using Woah.Api.Contracts.Playlists;
 using Woah.Api.Domain;
+using Woah.Api.Domain;
 using Woah.Api.Exceptions;
 using Woah.Api.Infrastructure.Persistence;
 using Woah.Api.Infrastructure.Persistence.Models;
@@ -66,11 +67,11 @@ public class LobbyPlaylistService : ILobbyPlaylistService
         var playerTrackCount = await _dbContext.PlaylistTracks
             .CountAsync(x => x.PlaylistId == playlist.PlaylistId && x.AddedByPlayerId == request.PlayerId, ct);
 
-        if (playerTrackCount >= ILobbyPlaylistService.MaxTracksPerPlayer)
+        if (playerTrackCount >= GameConstants.MaxTracksPerPlayer)
         {
             _logger.LogWarning("Add track rejected — player {PlayerId} reached limit in lobby {LobbyCode} ({Max} tracks)",
-                request.PlayerId, lobby.Code, ILobbyPlaylistService.MaxTracksPerPlayer);
-            throw new BadRequestException($"You can add at most {ILobbyPlaylistService.MaxTracksPerPlayer} tracks.");
+                request.PlayerId, lobby.Code, GameConstants.MaxTracksPerPlayer);
+            throw new BadRequestException($"You can add at most {GameConstants.MaxTracksPerPlayer} tracks.");
         }
 
         var itunesTrack = await _itunesClient.LookupSongAsync(request.TrackId, ct);

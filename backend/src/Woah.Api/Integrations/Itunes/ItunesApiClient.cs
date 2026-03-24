@@ -1,6 +1,7 @@
 ﻿using System.Net.Http.Json;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
+using Woah.Api.Domain;
 
 namespace Woah.Api.Integrations.Itunes;
 
@@ -30,7 +31,7 @@ public class ItunesApiClient
             ["country"] = _market,
             ["media"] = "music",
             ["entity"] = "song",
-            ["limit"] = "12"
+            ["limit"] = GameConstants.ItunesSearchLimit.ToString()
         });
 
         _logger.LogDebug("iTunes search request: term={Term}", term);

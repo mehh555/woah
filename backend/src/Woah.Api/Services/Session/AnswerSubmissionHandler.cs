@@ -18,8 +18,6 @@ public class AnswerSubmissionHandler : IAnswerSubmissionHandler
 	private readonly TimeProvider _timeProvider;
 	private readonly ILogger<AnswerSubmissionHandler> _logger;
 
-	private const int MaxConcurrencyRetries = 2;
-	private const int TrackOwnerBonusPoints = 75;
 
 	public AnswerSubmissionHandler(
 		WoahDbContext dbContext,
@@ -112,7 +110,6 @@ public class AnswerSubmissionHandler : IAnswerSubmissionHandler
 				return new SubmitAnswerResponse { Accepted = true, Message = "Incorrect answer." };
 			}
 
-			// Title = full points, Artist = half points (minimum 1)
 			var titlePoints = newTitle ? basePoints : 0;
 			var artistPoints = newArtist ? Math.Max(basePoints / 2, 1) : 0;
 			points = titlePoints + artistPoints;
@@ -141,7 +138,7 @@ public class AnswerSubmissionHandler : IAnswerSubmissionHandler
 				await _dbContext.SaveChangesAsync(ct);
 				break;
 			}
-			catch (DbUpdateConcurrencyException) when (attempt < MaxConcurrencyRetries)
+			catch (DbUpdateConcurrencyException) when (attempt < GameConstants.MaxConcurrencyRetries)
 			{
 				_logger.LogDebug(
 					"Concurrency conflict on answer for player {PlayerId} round {RoundNo} — retry {Attempt}",
@@ -161,26 +158,34 @@ public class AnswerSubmissionHandler : IAnswerSubmissionHandler
 			}
 		}
 
-		// Award track owner bonus (once) when the first other player guesses the title correctly
 		if (newTitle && trackOwnerId.HasValue)
 		{
 			var ownerAlreadyRewarded = round.CorrectAnswers.Any(a => a.PlayerId == trackOwnerId.Value);
 			if (!ownerAlreadyRewarded)
 			{
-				_dbContext.RoundCorrectAnswers.Add(new RoundCorrectAnswerEntity
+				try
 				{
-					RoundId = round.RoundId,
-					PlayerId = trackOwnerId.Value,
-					AnsweredAt = now,
-					Points = TrackOwnerBonusPoints,
-					GotTitle = false,
-					GotArtist = false
-				});
-				await _dbContext.SaveChangesAsync(ct);
+					_dbContext.RoundCorrectAnswers.Add(new RoundCorrectAnswerEntity
+					{
+						RoundId = round.RoundId,
+						PlayerId = trackOwnerId.Value,
+						AnsweredAt = now,
+						Points = GameConstants.TrackOwnerBonusPoints,
+						GotTitle = false,
+						GotArtist = false
+					});
+					await _dbContext.SaveChangesAsync(ct);
 
-				_logger.LogInformation(
-					"Track owner bonus {Bonus} pts awarded to {OwnerId} in session {SessionId} round {RoundNo}",
-					TrackOwnerBonusPoints, trackOwnerId.Value, sessionId, round.RoundNo);
+					_logger.LogInformation(
+						"Track owner bonus {Bonus} pts awarded to {OwnerId} in session {SessionId} round {RoundNo}",
+						GameConstants.TrackOwnerBonusPoints, trackOwnerId.Value, sessionId, round.RoundNo);
+				}
+				catch (DbUpdateException)
+				{
+					_logger.LogDebug(
+						"Track owner bonus already awarded (concurrent insert) for round {RoundNo} session {SessionId}",
+						round.RoundNo, sessionId);
+				}
 			}
 		}
 
@@ -201,9 +206,6 @@ public class AnswerSubmissionHandler : IAnswerSubmissionHandler
 		};
 	}
 
-	private async Task<GameSessionEntity> LoadSessionAsync(Guid sessionId, CancellationToken ct) =>
-		await _dbContext.GameSessions
-			.Include(x => x.Rounds).ThenInclude(x => x.CorrectAnswers)
-			.FirstOrDefaultAsync(x => x.SessionId == sessionId, ct)
-		?? throw new Exceptions.NotFoundException("Session not found.");
+	private Task<GameSessionEntity> LoadSessionAsync(Guid sessionId, CancellationToken ct) =>
+		_dbContext.GameSessions.GetSessionWithRoundsAsync(sessionId, ct);
 }

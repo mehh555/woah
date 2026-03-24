@@ -192,9 +192,6 @@ public class SessionService : ISessionService
         };
     }
 
-    private async Task<GameSessionEntity> LoadSessionAsync(Guid sessionId, CancellationToken ct) =>
-        await _dbContext.GameSessions
-            .Include(x => x.Rounds).ThenInclude(x => x.CorrectAnswers)
-            .FirstOrDefaultAsync(x => x.SessionId == sessionId, ct)
-        ?? throw new NotFoundException("Session not found.");
+    private Task<GameSessionEntity> LoadSessionAsync(Guid sessionId, CancellationToken ct) =>
+        _dbContext.GameSessions.GetSessionWithRoundsAsync(sessionId, ct);
 }
