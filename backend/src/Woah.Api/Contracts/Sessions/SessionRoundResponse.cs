@@ -19,4 +19,5 @@ public class SessionRoundResponse
     public List<Guid> CorrectPlayerIds { get; set; } = new();
     public List<Guid> CorrectTitlePlayerIds { get; set; } = new();
     public List<Guid> CorrectArtistPlayerIds { get; set; } = new();
+    public Guid AddedByPlayerId { get; set; }
 }

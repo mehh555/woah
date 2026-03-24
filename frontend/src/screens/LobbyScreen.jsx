@@ -137,7 +137,7 @@ export default function LobbyScreen({ onStart, onExit }) {
                 ))}
             </div>
 
-            {  (
+            {(
                 <PlaylistPanel lobbyCode={session.lobbyCode} playerId={session.playerId} />
             )}
 

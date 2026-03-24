@@ -19,6 +19,7 @@ public class AnswerSubmissionHandler : IAnswerSubmissionHandler
 	private readonly ILogger<AnswerSubmissionHandler> _logger;
 
 	private const int MaxConcurrencyRetries = 2;
+	private const int TrackOwnerBonusPoints = 75;
 
 	public AnswerSubmissionHandler(
 		WoahDbContext dbContext,
@@ -62,6 +63,16 @@ public class AnswerSubmissionHandler : IAnswerSubmissionHandler
 
 		if (round is null)
 			return SubmitAnswerResponse.Rejected("There is no active round to answer.");
+
+		var trackOwnerId = round.ItunesTrackId is not null
+			? await _dbContext.PlaylistTracks
+				.Where(pt => pt.PlaylistId == round.PlaylistId && pt.ItunesTrackId == round.ItunesTrackId)
+				.Select(pt => (Guid?)pt.AddedByPlayerId)
+				.FirstOrDefaultAsync(ct)
+			: null;
+
+		if (trackOwnerId == request.PlayerId)
+			return SubmitAnswerResponse.Rejected("You cannot guess your own track.");
 
 		var now = _timeProvider.GetUtcNow().UtcDateTime;
 
@@ -147,6 +158,29 @@ public class AnswerSubmissionHandler : IAnswerSubmissionHandler
 					"Answer rejected (duplicate insert) — player {PlayerId} round {RoundNo} session {SessionId}",
 					request.PlayerId, round.RoundNo, sessionId);
 				return SubmitAnswerResponse.AlreadyFullyAnswered();
+			}
+		}
+
+		// Award track owner bonus (once) when the first other player guesses the title correctly
+		if (newTitle && trackOwnerId.HasValue)
+		{
+			var ownerAlreadyRewarded = round.CorrectAnswers.Any(a => a.PlayerId == trackOwnerId.Value);
+			if (!ownerAlreadyRewarded)
+			{
+				_dbContext.RoundCorrectAnswers.Add(new RoundCorrectAnswerEntity
+				{
+					RoundId = round.RoundId,
+					PlayerId = trackOwnerId.Value,
+					AnsweredAt = now,
+					Points = TrackOwnerBonusPoints,
+					GotTitle = false,
+					GotArtist = false
+				});
+				await _dbContext.SaveChangesAsync(ct);
+
+				_logger.LogInformation(
+					"Track owner bonus {Bonus} pts awarded to {OwnerId} in session {SessionId} round {RoundNo}",
+					TrackOwnerBonusPoints, trackOwnerId.Value, sessionId, round.RoundNo);
 			}
 		}
 

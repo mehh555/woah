@@ -27,6 +27,13 @@ public class SessionStateBuilder : ISessionStateBuilder
         var current = rounds.FirstOrDefault(x => x.State == RoundState.Playing)
                    ?? rounds.FirstOrDefault(x => x.State == RoundState.Revealed);
 
+        var trackOwnerLookup = current?.ItunesTrackId is not null
+            ? await _dbContext.PlaylistTracks
+                .Where(pt => pt.PlaylistId == session.PlaylistId && pt.ItunesTrackId == current.ItunesTrackId)
+                .Select(pt => (Guid?)pt.AddedByPlayerId)
+                .FirstOrDefaultAsync(ct)
+            : null;
+
         return new GetSessionStateResponse
         {
             SessionId = session.SessionId,
@@ -38,12 +45,12 @@ public class SessionStateBuilder : ISessionStateBuilder
             TotalRounds = rounds.Count,
             CompletedRounds = rounds.Count(x => x.State == RoundState.Finished),
             RoundDurationSeconds = settings.RoundDurationSeconds,
-            CurrentRound = current is null ? null : MapRound(current),
+            CurrentRound = current is null ? null : MapRound(current, trackOwnerLookup),
             Leaderboard = BuildLeaderboard(lobby.ActivePlayers(), rounds)
         };
     }
 
-    private SessionRoundResponse MapRound(RoundEntity round)
+    private SessionRoundResponse MapRound(RoundEntity round, Guid? addedByPlayerId)
     {
         var answers = round.CorrectAnswers.ToList();
         var isRevealed = round.State is RoundState.Revealed or RoundState.Finished;
@@ -71,7 +78,8 @@ public class SessionStateBuilder : ISessionStateBuilder
             CorrectAnswerCount = answers.Count,
             CorrectPlayerIds = answers.Select(x => x.PlayerId).ToList(),
             CorrectTitlePlayerIds = answers.Where(x => x.GotTitle).Select(x => x.PlayerId).ToList(),
-            CorrectArtistPlayerIds = answers.Where(x => x.GotArtist).Select(x => x.PlayerId).ToList()
+            CorrectArtistPlayerIds = answers.Where(x => x.GotArtist).Select(x => x.PlayerId).ToList(),
+            AddedByPlayerId = addedByPlayerId ?? Guid.Empty
         };
     }
 

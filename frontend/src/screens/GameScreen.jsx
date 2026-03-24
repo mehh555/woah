@@ -196,7 +196,8 @@ export default function GameScreen({ onExit, onReturnToLobby }) {
     const isRoundRevealed = currentRound?.state === "Revealed";
     const sorted = [...(leaderboard || [])].sort((a, b) => b.score - a.score);
     const bothGuessed = myTitleGuessed && myArtistGuessed;
-    const canStillGuess = isRoundPlaying && !bothGuessed;
+    const isMyTrack = currentRound?.addedByPlayerId === session.playerId;
+    const canStillGuess = isRoundPlaying && !bothGuessed && !isMyTrack;
 
     // ─── FINISHED SCREEN ─────────────────────────────────
     if (isFinished) {
