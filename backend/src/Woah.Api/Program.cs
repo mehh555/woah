@@ -36,8 +36,17 @@ builder.Services.AddCors(options =>
     });
 });
 
+var connectionString = builder.Configuration.GetConnectionString("WoahDb");
+
+if (connectionString?.StartsWith("postgres://") == true || connectionString?.StartsWith("postgresql://") == true)
+{
+    var uri = new Uri(connectionString);
+    var userInfo = uri.UserInfo.Split(':');
+    connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
+}
+
 builder.Services.AddDbContext<WoahDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("WoahDb")));
+    options.UseNpgsql(connectionString));
 
 builder.Services.AddSingleton(TimeProvider.System);
 
@@ -72,12 +81,14 @@ builder.Services.AddHealthChecks()
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+using (var scope = app.Services.CreateScope())
 {
-    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<WoahDbContext>();
     db.Database.Migrate();
+}
 
+if (app.Environment.IsDevelopment())
+{
     app.UseSwagger();
     app.UseSwaggerUI();
 }
