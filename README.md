@@ -1,182 +1,119 @@
 <p align="center">
   <h1 align="center">🎵 WOAH</h1>
   <p align="center">
-    <strong>Real-time multiplayer music guessing — built for concurrency, not just correctness.</strong>
+    <strong>Real-time multiplayer music guessing game built for high concurrency and robust state management.</strong>
   </p>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" />
-  <img src="https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black" />
-  <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" />
-  <img src="https://img.shields.io/badge/SignalR-WebSockets-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" />
-  <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white" />
-  <img src="https://img.shields.io/badge/Vite-6-646CFF?style=for-the-badge&logo=vite&logoColor=white" />
+  <img src="https://img.shields.io/badge/.NET_8.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET 8" />
+  <img src="https://img.shields.io/badge/React_18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React 18" />
+  <img src="https://img.shields.io/badge/PostgreSQL_16-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL 16" />
+  <img src="https://img.shields.io/badge/SignalR-0078D4?style=for-the-badge&logo=microsoft&logoColor=white" alt="SignalR" />
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
 </p>
 
 <p align="center">
   <a href="https://woah-mvz6.onrender.com/">
-    <img src="https://img.shields.io/badge/🚀_Play_Live_Demo-00E5A0?style=for-the-badge&logoColor=white" />
+    <img src="https://img.shields.io/badge/🚀_Play_Live_Demo-00E5A0?style=for-the-badge&logoColor=white" alt="Live Demo" />
   </a>
 </p>
 
----
-
-Gracze dołączają do lobby, każdy dodaje utwory z iTunes, a gra odtwarza 30-sekundowe fragmenty. Wpisz tytuł lub artystę zanim skończy się czas — szybciej = więcej punktów. Nie możesz zgadnąć własnej piosenki, ale zdobywasz bonus, gdy ktoś inny zgadnie Twój utwór.
-
-![Gameplay Preview](docs/gameplay.gif)
-![Lobby Preview](docs/lobby.gif)
+> **⚠️ Live Demo Notice:** The provided link is a proof-of-concept deployment running on Render's free tier. Due to the platform's strict CPU/memory throttling and shared resources, you may experience noticeable latency during gameplay or WebSocket synchronization. 
 
 ---
 
-## 🎮 Funkcje rozgrywki
+## 📖 Overview
 
-- **System Lobby** — Twórz lub dołączaj przy użyciu 6-znakowego kodu. Host kontroluje playlistę i czas trwania rundy (5–25s).  
-- **Utwory dodawane przez graczy** — Każdy wyszukuje utwory w iTunes i dodaje je do wspólnej playlisty. Gra losowo odtwarza utwory.  
-- **Live Scoring** — Punkty maleją liniowo od 100 do 1 w miarę upływu czasu. Zgadywanie tylko artysty daje połowę punktów.  
-- **Mechanika właściciela utworu** — Nie możesz zgadywać własnego utworu. Gdy inny gracz zgadnie Twój utwór, otrzymujesz bonus 75 punktów, przyznawany tylko raz na rundę.  
-- **Punkty częściowe** — Tytuł i artysta oceniane niezależnie, możesz zdobyć jeden teraz, a drugi później w tej samej rundzie.  
-- **Regulacja głośności** — Suwak w grze z zapamiętaną preferencją (`localStorage`). Możliwa zmiana w trakcie rundy.  
-- **GPU-accelerated Timer** — Pasek postępu działa na pojedynczej animacji CSS, bez obciążania JS.  
-- **Aktualizacje w czasie rzeczywistym** — Dołączenia do lobby, zmiany rund, wyników i stanu gry przesyłane natychmiast przez WebSocket (SignalR).  
-- **Utrzymanie sesji** — Odświeżenie strony przywraca dokładny stan gry (lobby, sesja, postęp).  
-- **Sprzątanie nieaktywnych gier** — Usługa w tle automatycznie zamyka opuszczone lobby (30 min) i sesje (15 min).
+Woah is a real-time web application where players create lobbies, collaboratively build a playlist using the iTunes Search API, and compete to guess playing tracks. Built with a focus on **data integrity under concurrent load**, sophisticated **text normalization**, and **resilient WebSocket communication**.
+
+---
+**Project Origins:** *Woah* started out simply as a casual, fun idea for a multiplayer game we could host locally to play with friends. It eventually grew into a fully-featured app, but the core goal remains the same: guessing songs and having a good time.
 
 ---
 
-## ⚙️ Inżynieria i architektura
+## 🚀 Quick Start (Local Development)
 
-### Kontrola współbieżności — 3 poziomy
+The easiest way to run the application is via Docker Compose.
 
-| Poziom | Mechanizm | Gdzie | Dlaczego |
-|--------|-----------|-------|----------|
-| **Pesymistyczny** | `SELECT ... FOR UPDATE` | Dołączanie do lobby | Zapobiega jednoczesnemu zajęciu ostatniego miejsca |
-| **Serializable** | `IsolationLevel.Serializable` | Tworzenie sesji | Gwarantuje dokładnie jedną aktywną sesję na lobby |
-| **Optymistyczny** | PostgreSQL `xmin` row versioning + retry | Przesyłanie odpowiedzi | Obsługuje współbieżne zapisy bez blokowania całej rundy |
+```bash
+# 1. Clone the repository
+git clone https://github.com/mehh/woah.git
+cd woah
 
-```csharp
-for (var attempt = 0; ; attempt++)
-{
-    var existing = round.CorrectAnswers.FirstOrDefault(x => x.PlayerId == request.PlayerId);
-    // ... calculate points ...
-    try
-    {
-        await _dbContext.SaveChangesAsync(ct);
-        break;
-    }
-    catch (DbUpdateConcurrencyException) when (attempt < GameConstants.MaxConcurrencyRetries)
-    {
-        if (existing is not null)
-            await _dbContext.Entry(existing).ReloadAsync(ct);
-        continue;
-    }
-}
-Silnik normalizacji tekstu
-
-Normalizacja odpowiada za dopasowanie wpisów typu "naïve", "NAIVE", "n@1ve", "ñaive" do tytułu lub artysty, usuwa diakrytyki i normalizuje format.
-
-Pipeline:
-
-Mapowanie znaków — Leet-speak ($→s, @→a, 3→e, 0→o) i specjalne (ł→l, ß→ss, ø→o)
-Małe litery — ToLowerInvariant()
-Decompozycja NFD — rozdzielenie bazowego znaku + kombinujących
-Usuwanie diakrytyków — UnicodeCategory.NonSpacingMark
-Rekompozycja NFC — złożenie znaków, redukcja spacji
-Bezpieczeństwo i produkcja
-Problem	Rozwiązanie
-Brute-force kodów lobby	Limit żądań JoinLobby 10 req/60s/IP
-Spam odpowiedzi	SubmitAnswer capped 5 req/10s/IP
-Ekspozycja Swagger	Tylko w IsDevelopment()
-Auto-migracje w prod	Tylko manualnie w prod
-Wycieki danych	dotnet user-secrets lokalnie, zmienne środowiskowe w prod
-Race condition bonusów	Obsługa w try/catch (DbUpdateException)
-Komunikacja w czasie rzeczywistym
-
-SignalR WebSocket + fallback long-polling. Kanały grupowe:
-
-lobby:{code} — dołączenia, zmiany playlisty, start sesji
-session:{id} — zmiany rund, aktualizacja wyników, powiadomienia o poprawnych odpowiedziach
-
-Frontend używa hooka useSignalRGroup z wrapperami useLobbySubscription i useSessionSubscription.
-
-🏗️ Architektura systemu
-┌─────────────┐         WebSocket (SignalR)          ┌──────────────────┐
-│             │ ◄──────────────────────────────────── │                  │
-│   React 18  │                                      │   .NET 8 API     │
-│   (Vite)    │ ────── REST (JSON) ────────────────► │                  │
-│             │                                      │  Controllers     │
-└──────┬──────┘                                      │    ↓             │
-       │                                             │  Services (DI)   │
-  Vercel CDN                                         │    ↓             │
-                                                     │  EF Core         │
-                                                     │    ↓             │
-                                                     └───────┬──────────┘
-                                                             │  Render
-                                                     ┌───────▼──────────┐
-                                                     │  PostgreSQL 16   │
-                                                     │                  │
-                                                     │  xmin versioning │
-                                                     │  FOR UPDATE      │
-                                                     │  SERIALIZABLE    │
-                                                     └──────────────────┘
-☁️ Chmura i wdrożenie
-Komponent	Platforma	Szczegóły
-Frontend	Vercel	SPA z Vite, CDN, SSL
-Backend	Render	Docker .NET 8, multi-stage Alpine (~80MB), health checks
-Baza	Render	PostgreSQL 16, connection string z env
-
-Keep-Alive: cron co 14 min pingujący /health/live → SignalR nie traci połączeń.
-
-🚀 Uruchamianie lokalne
-
-Docker Compose (zalecane):
-
-git clone https://github.com/mehh/woah.git && cd woah
+# 2. Start the containers
 docker compose up --build
-# http://localhost:5173
 
-Bez Dockera:
+# 3. Open your browser
+# The application will be running at http://localhost:5173
+```
 
+### Without Docker
+
+```bash
+# 1. Backend
 cd backend/src/Woah.Api
-dotnet user-secrets set "ConnectionStrings:WoahDb" "Host=localhost;Port=5432;Database=woah;Username=woah_user;Password=woah_pass"
+dotnet user-secrets set "ConnectionStrings:WoahDb" \
+  "Host=localhost;Port=5432;Database=woah;Username=woah_user;Password=woah_pass"
 dotnet run
-# http://localhost:5234
+# → http://localhost:5234 | Swagger at /swagger (dev only)
 
+# 2. Frontend (separate terminal)
 cd frontend
 npm install && npm run dev
-# http://localhost:5173
-🔐 Zmienne środowiskowe
+# → http://localhost:5173 (proxies /api and /hubs to backend)
+```
 
-Backend:
+> **Tip:** The Vite dev server proxies both REST (`/api`) and WebSocket (`/hubs`) traffic to the backend — no CORS configuration needed in development.
 
-ConnectionStrings__WoahDb — wymagane
-AllowedCorsOrigins__0 — domyślnie http://localhost:5173
-ASPNETCORE_ENVIRONMENT — domyślnie Production
-Itunes__Market — domyślnie US
+---
 
-Frontend:
+## 🔐 Environment Variables
 
-VITE_API_URL — domyślnie /api
-📁 Struktura projektu
+For manual deployment or Docker configuration, the following variables are required:
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `ConnectionStrings__WoahDb` | PostgreSQL connection string | **Yes** | — |
+| `ASPNETCORE_ENVIRONMENT` | Environment toggle (`Production`, `Development`) | No | `Production` |
+| `AllowedCorsOrigins__0` | Allowed CORS origin | No | `http://localhost:5173` |
+| `Itunes__Market` | Regional market for the iTunes API | No | `US` |
+
+---
+
+## 📁 Project Structure
+
+```
 woah/
 ├── backend/
 │   └── src/Woah.Api/
-│       ├── Contracts/
-│       ├── Controllers/
-│       ├── Domain/
-│       ├── Hubs/
-│       ├── Infrastructure/Persistence/
-│       ├── Integrations/Itunes/
-│       ├── Middleware/
+│       ├── Contracts/              # Request/response DTOs
+│       ├── Controllers/            # Thin API endpoints
+│       ├── Domain/                 # GameConstants, enums, value objects
+│       ├── Hubs/                   # SignalR GameHub
+│       ├── Infrastructure/
+│       │   └── Persistence/        # EF Core context, entity models, migrations
+│       ├── Integrations/Itunes/    # iTunes search API client
+│       ├── Middleware/             # Global exception handler, rate limiting
 │       └── Services/
-├── frontend/src/
-│   ├── api/
-│   ├── components/
-│   ├── context/
-│   ├── hooks/
-│   └── screens/
+│           ├── Cleanup/            # Background stale-game cleanup
+│           ├── Lobby/              # Lobby CRUD, code generation
+│           ├── Notifications/      # SignalR push layer
+│           ├── Playlist/           # Track search & management
+│           └── Session/            # Game engine, scoring, answer normalization
+├── frontend/
+│   └── src/
+│       ├── api/                    # REST client + SignalR connection
+│       ├── components/             # ErrorBoundary, PlaylistPanel, Timer
+│       ├── context/                # SessionContext, GameHubContext
+│       ├── hooks/                  # usePolling, useSignalRGroup, subscriptions
+│       └── screens/               # StartScreen, LobbyScreen, GameScreen
 ├── docker-compose.yml
-└── Dockerfile
-📄 Licencja
+└── Dockerfile                      # Multi-stage: frontend build → backend publish → Alpine runtime
+```
 
-Projekt edukacyjny / portfolio. Fragmenty muzyczne pochodzą z iTunes Search API zgodnie z regulaminem Apple.
+---
+
+## 📄 Disclaimer
+
+This is an educational portfolio project. Audio previews are sourced from the iTunes Search API.
