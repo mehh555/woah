@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Woah.Api.Contracts.Playlists;
 using Woah.Api.Middleware;
 using Woah.Api.Services.Playlist;
+
 namespace Woah.Api.Controllers;
 
 [ApiController]
@@ -25,7 +26,13 @@ public class ItunesController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(term))
         {
-            return BadRequest(new { message = "Search term is required." });
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Bad Request",
+                Detail = "Search term is required.",
+                Instance = HttpContext.Request.Path
+            });
         }
 
         var response = await _lobbyPlaylistService.SearchTracksAsync(term, cancellationToken);

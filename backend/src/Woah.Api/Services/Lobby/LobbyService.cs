@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Woah.Api.Contracts;
 using Woah.Api.Contracts.Lobbies;
 using Woah.Api.Domain;
 using Woah.Api.Exceptions;
@@ -163,7 +164,7 @@ public class LobbyService : ILobbyService
         {
             LobbyId = lobby.LobbyId,
             Code = lobby.Code,
-            Status = lobby.Status.ToString(),
+            Status = lobby.Status.ToContract(),
             MaxPlayers = lobby.MaxPlayers,
             HostPlayerId = lobby.HostPlayerId,
             PlayerCount = active.Count,
@@ -224,7 +225,7 @@ public class LobbyService : ILobbyService
             LobbyCode = lobby.Code,
             PlayerId = request.PlayerId,
             WasHost = wasHost,
-            LobbyStatus = lobby.Status.ToString()
+            LobbyStatus = lobby.Status.ToContract()
         };
     }
 

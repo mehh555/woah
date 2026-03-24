@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Woah.Api.Contracts.Lobbies;
+using Woah.Api.Middleware;
 using Woah.Api.Services.Lobby;
 
 namespace Woah.Api.Controllers;
@@ -13,6 +15,7 @@ public class LobbiesController : ControllerBase
     public LobbiesController(ILobbyService lobbyService) => _lobbyService = lobbyService;
 
     [HttpPost]
+    [EnableRateLimiting(RateLimitingConfiguration.CreateLobby)]
     public async Task<ActionResult<CreateLobbyResponse>> CreateLobby(
         [FromBody] CreateLobbyRequest request, CancellationToken ct)
         => Ok(await _lobbyService.CreateLobbyAsync(request, ct));

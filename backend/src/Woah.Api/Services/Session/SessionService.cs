@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Woah.Api.Contracts;
 using Woah.Api.Contracts.Sessions;
 using Woah.Api.Domain;
 using Woah.Api.Exceptions;
@@ -88,7 +89,7 @@ public class SessionService : ISessionService
                 PlaylistId = playlist.PlaylistId,
                 HostPlayerId = request.HostPlayerId,
                 StartedAt = session.StartedAt,
-                LobbyStatus = lobby.Status.ToString(),
+                LobbyStatus = lobby.Status.ToContract(),
                 RoundCount = session.Rounds.Count
             };
         }
@@ -156,7 +157,6 @@ public class SessionService : ISessionService
             throw new BadRequestException("Session is still in progress.");
 
         var lobby = await _dbContext.Lobbies
-            .Include(x => x.LobbyPlayers)
             .FirstAsync(x => x.LobbyId == session.LobbyId, ct);
 
         if (lobby.HostPlayerId != request.HostPlayerId)
@@ -188,7 +188,7 @@ public class SessionService : ISessionService
             LobbyId = lobby.LobbyId,
             LobbyCode = lobby.Code,
             PlaylistId = playlist.PlaylistId,
-            LobbyStatus = lobby.Status.ToString()
+            LobbyStatus = lobby.Status.ToContract()
         };
     }
 

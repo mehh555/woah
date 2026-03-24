@@ -67,18 +67,22 @@ public class StaleGameCleanupService : BackgroundService
         var cutoff = now - StaleLobbyThreshold;
 
         var staleLobbies = await db.Lobbies
-            .Include(l => l.LobbyPlayers)
             .Where(l => l.Status == LobbyStatus.Waiting && l.CreatedAt < cutoff)
+            .Select(l => new
+            {
+                Lobby = l,
+                ActiveMembers = l.LobbyPlayers.Where(m => m.LeftAt == null).ToList()
+            })
             .ToListAsync(ct);
 
-        foreach (var lobby in staleLobbies)
+        foreach (var entry in staleLobbies)
         {
-            lobby.Status = LobbyStatus.Finished;
+            entry.Lobby.Status = LobbyStatus.Finished;
 
-            foreach (var member in lobby.LobbyPlayers.Where(m => m.LeftAt == null))
+            foreach (var member in entry.ActiveMembers)
                 member.LeftAt = now;
 
-            _logger.LogInformation("Closed stale lobby {LobbyCode} (created {CreatedAt})", lobby.Code, lobby.CreatedAt);
+            _logger.LogInformation("Closed stale lobby {LobbyCode} (created {CreatedAt})", entry.Lobby.Code, entry.Lobby.CreatedAt);
         }
 
         if (staleLobbies.Count > 0)
@@ -93,32 +97,37 @@ public class StaleGameCleanupService : BackgroundService
         var cutoff = now - StaleSessionThreshold;
 
         var activeSessions = await db.GameSessions
-            .Include(s => s.Rounds)
             .Where(s => s.EndedAt == null)
+            .Select(s => new
+            {
+                Session = s,
+                LastRoundEnd = s.Rounds
+                    .Where(r => r.EndsAt != null)
+                    .Max(r => (DateTime?)r.EndsAt),
+                ActiveRounds = s.Rounds
+                    .Where(r => r.State == RoundState.Playing || r.State == RoundState.Revealed)
+                    .ToList()
+            })
             .ToListAsync(ct);
 
         var closed = 0;
 
-        foreach (var session in activeSessions)
+        foreach (var entry in activeSessions)
         {
-            var lastRoundEnd = session.Rounds
-                .Where(r => r.EndsAt != null)
-                .Max(r => (DateTime?)r.EndsAt);
-
-            if (lastRoundEnd is null || lastRoundEnd.Value >= cutoff)
+            if (entry.LastRoundEnd is null || entry.LastRoundEnd.Value >= cutoff)
                 continue;
 
-            session.EndedAt = now;
+            entry.Session.EndedAt = now;
 
-            foreach (var round in session.Rounds.Where(r => r.State == RoundState.Playing || r.State == RoundState.Revealed))
+            foreach (var round in entry.ActiveRounds)
                 round.State = RoundState.Finished;
 
-            var lobby = await db.Lobbies.FirstOrDefaultAsync(l => l.LobbyId == session.LobbyId, ct);
+            var lobby = await db.Lobbies.FirstOrDefaultAsync(l => l.LobbyId == entry.Session.LobbyId, ct);
             if (lobby is not null && lobby.Status == LobbyStatus.InGame)
                 lobby.Status = LobbyStatus.Finished;
 
             _logger.LogInformation("Closed stale session {SessionId} (last round ended {LastRoundEnd})",
-                session.SessionId, lastRoundEnd);
+                entry.Session.SessionId, entry.LastRoundEnd);
             closed++;
         }
 

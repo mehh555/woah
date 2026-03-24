@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Woah.Api.Contracts;
 using Woah.Api.Contracts.Sessions;
 using Woah.Api.Domain;
 using Woah.Api.Infrastructure.Persistence;
@@ -30,7 +31,7 @@ public class SessionStateBuilder : ISessionStateBuilder
         {
             SessionId = session.SessionId,
             LobbyId = session.LobbyId,
-            LobbyStatus = lobby.Status.ToString(),
+            LobbyStatus = lobby.Status.ToContract(),
             StartedAt = session.StartedAt,
             EndedAt = session.EndedAt,
             IsFinished = session.EndedAt is not null,
@@ -47,7 +48,6 @@ public class SessionStateBuilder : ISessionStateBuilder
         var answers = round.CorrectAnswers.ToList();
         var isRevealed = round.State is RoundState.Revealed or RoundState.Finished;
 
-        // Mask uses cleaned title/artist (no feat, no brackets)
         var cleanedTitle = _cleaner.CleanTitle(round.AnswerTitle);
         var mainArtist = _cleaner.ExtractMainArtist(round.AnswerArtist);
 
@@ -55,7 +55,7 @@ public class SessionStateBuilder : ISessionStateBuilder
         {
             RoundId = round.RoundId,
             RoundNo = round.RoundNo,
-            State = round.State.ToString(),
+            State = round.State.ToContract(),
             PreviewUrl = round.PreviewUrl,
             StartedAt = round.StartedAt,
             EndsAt = round.EndsAt,
@@ -80,25 +80,30 @@ public class SessionStateBuilder : ISessionStateBuilder
 
     private static List<SessionLeaderboardEntryResponse> BuildLeaderboard(
         List<LobbyPlayerEntity> players,
-        List<RoundEntity> rounds) =>
-        players
+        List<RoundEntity> rounds)
+    {
+        var statsByPlayer = rounds
+            .SelectMany(r => r.CorrectAnswers)
+            .GroupBy(a => a.PlayerId)
+            .ToDictionary(
+                g => g.Key,
+                g => (Score: g.Sum(a => a.Points), Count: g.Count()));
+
+        return players
             .Select(p =>
             {
-                var answers = rounds
-                    .SelectMany(r => r.CorrectAnswers)
-                    .Where(a => a.PlayerId == p.PlayerId)
-                    .ToList();
-
+                statsByPlayer.TryGetValue(p.PlayerId, out var stats);
                 return new SessionLeaderboardEntryResponse
                 {
                     PlayerId = p.PlayerId,
                     Nick = p.Nick,
-                    Score = answers.Sum(a => a.Points),
-                    CorrectAnswers = answers.Count
+                    Score = stats.Score,
+                    CorrectAnswers = stats.Count
                 };
             })
             .OrderByDescending(x => x.Score)
             .ThenByDescending(x => x.CorrectAnswers)
             .ThenBy(x => x.Nick)
             .ToList();
+    }
 }

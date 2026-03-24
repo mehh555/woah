@@ -6,7 +6,7 @@ public class CreateLobbyRequest
 {
     [Required]
     [MinLength(1)]
-    [MaxLength(30)]
+    [MaxLength(20)]
     public string HostNick { get; set; } = default!;
 
     [Range(2, 20)]

@@ -6,6 +6,6 @@ public class JoinLobbyRequest
 {
     [Required]
     [MinLength(1)]
-    [MaxLength(30)]
+    [MaxLength(20)]
     public string Nick { get; set; } = default!;
 }
